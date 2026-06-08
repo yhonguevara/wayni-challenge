@@ -85,3 +85,16 @@ phases:
     gates:
       - delta_synced
       - cleanup_done
+
+completed_changes:
+  - name: phase-0-setup
+    completion_date: "2026-06-08"
+    verification_status: "CONDITIONAL_PASS → PASS after fixes"
+    summary: "Phase 0 — Project Setup: Monorepo with two Laravel 13 services, Docker Compose, AWS SAM IaC, upload frontend, naming conventions"
+    tasks_completed: 21
+    specs_synced:
+      - project-scaffolding
+      - development-environment
+      - aws-infrastructure
+      - file-ingestion
+      - file-upload-frontend
