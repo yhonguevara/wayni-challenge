@@ -20,11 +20,6 @@ final class BcraFileParser
 {
     private const LINE_LENGTH = 171;
 
-    /** Valid situation codes per leame-deudores.md §1.1 */
-    private const VALID_SITUATIONS = [
-        '01', '21', '23', '03', '04', '05', '11',
-    ];
-
     /** Identification type for CUIT/CUIL/CDI (RN-03) */
     private const IDENTIFICATION_TYPE_CUIT = '11';
 
@@ -87,7 +82,7 @@ final class BcraFileParser
                     }
 
                     // RN-04: Filter invalid situation codes
-                    if (!in_array($dto->situation, self::VALID_SITUATIONS, true)) {
+                    if (!in_array($dto->situation, Situation::validCodes(), true)) {
                         continue;
                     }
 

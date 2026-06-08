@@ -187,4 +187,30 @@ class SituationTest extends TestCase
             }
         }
     }
+
+    public function test_valid_codes_returns_all_enum_values(): void
+    {
+        // Act
+        $validCodes = Situation::validCodes();
+
+        // Assert
+        $this->assertCount(7, $validCodes);
+        $this->assertContains('01', $validCodes);
+        $this->assertContains('03', $validCodes);
+        $this->assertContains('04', $validCodes);
+        $this->assertContains('05', $validCodes);
+        $this->assertContains('11', $validCodes);
+        $this->assertContains('21', $validCodes);
+        $this->assertContains('23', $validCodes);
+    }
+
+    public function test_valid_codes_matches_enum_cases(): void
+    {
+        // Act
+        $validCodes = Situation::validCodes();
+        $enumValues = array_map(fn(Situation $s) => $s->value, Situation::cases());
+
+        // Assert
+        $this->assertSame($enumValues, $validCodes);
+    }
 }

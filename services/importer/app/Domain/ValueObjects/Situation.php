@@ -45,4 +45,14 @@ enum Situation: string
     {
         return self::Unrecoverable;
     }
+
+    /**
+     * Return all valid situation codes.
+     *
+     * @return array<string>
+     */
+    public static function validCodes(): array
+    {
+        return array_map(fn(self $case) => $case->value, self::cases());
+    }
 }
