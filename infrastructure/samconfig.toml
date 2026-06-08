@@ -9,5 +9,5 @@ s3_prefix = "wayni-bcra"
 region = "us-east-1"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = "Environment=dev"
+parameter_overrides = "Environment=dev VpcId=vpc-xxxxxxxx SubnetIds=subnet-xxxxxxxx,subnet-yyyyyyyy ImporterImageUri=123456789.dkr.ecr.us-east-1.amazonaws.com/wayni-importer:latest QueryImageUri=123456789.dkr.ecr.us-east-1.amazonaws.com/wayni-query:latest"
 image_repositories = []
