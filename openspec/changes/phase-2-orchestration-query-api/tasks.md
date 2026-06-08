@@ -73,13 +73,13 @@ Chain strategy: pending
 
 ## Phase 8: Testing
 
-- [ ] 8.1 Unit test ImportOrchestrator: mock all deps, verify sequence + ImportLog status transitions per REQ-ORC-001
-- [ ] 8.2 Unit test LogNotification: assert `Log::info` called with filename + totals per REQ-NTF-002
-- [ ] 8.3 Unit test WebhookNotification: assert HTTP POST; URL missing throws per REQ-NTF-003
-- [ ] 8.4 Unit test NotificationFactory: all 3 drivers + default + invalid per REQ-NTF-005
-- [ ] 8.5 Feature test UploadController: valid→202, wrong ext→422, wrong MIME→422, oversized→422, missing→422 per REQ-ING-007
-- [ ] 8.6 Feature test DebtorController: 200 with data, 404 unknown CUIT, 422 bad format, pagination, situation filter per REQ-API-001/002/003
-- [ ] 8.7 Feature test EntityController: 200, 404, 422 per REQ-API-004
-- [ ] 8.8 Integration test UpsertDebtorHandler: dispatch event sync, assert upsert per REQ-HND-001
-- [ ] 8.9 Integration test UpsertEntityHandler: dispatch event sync, assert upsert per REQ-HND-002
-- [ ] 8.10 Integration test LogImportCompletionHandler: dispatch event sync, assert log per REQ-HND-003
+- [x] 8.1 Unit test ImportOrchestrator: mock all deps, verify sequence + ImportLog status transitions per REQ-ORC-001
+- [x] 8.2 Unit test LogNotification: assert `Log::info` called with filename + totals per REQ-NTF-002
+- [x] 8.3 Unit test WebhookNotification: assert HTTP POST; URL missing throws per REQ-NTF-003
+- [x] 8.4 Unit test NotificationFactory: all 3 drivers + default + invalid per REQ-NTF-005
+- [x] 8.5 Feature test UploadController: valid→202, wrong ext→422, wrong MIME→422, oversized→422, missing→422 per REQ-ING-007
+- [x] 8.6 Feature test DebtorController: 200 with data, 404 unknown CUIT, 422 bad format, pagination, situation filter per REQ-API-001/002/003
+- [x] 8.7 Feature test EntityController: 200, 404, 422 per REQ-API-004
+- [x] 8.8 Integration test UpsertDebtorHandler: dispatch event sync, assert upsert per REQ-HND-001
+- [x] 8.9 Integration test UpsertEntityHandler: dispatch event sync, assert upsert per REQ-HND-002
+- [x] 8.10 Integration test LogImportCompletionHandler: dispatch event sync, assert log per REQ-HND-003
