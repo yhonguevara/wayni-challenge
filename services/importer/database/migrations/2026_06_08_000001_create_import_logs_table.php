@@ -11,7 +11,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('import_logs', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->string('filename', 255);
             $table->string('status', 20)->default('pending');
             $table->integer('total_lines')->nullable();
