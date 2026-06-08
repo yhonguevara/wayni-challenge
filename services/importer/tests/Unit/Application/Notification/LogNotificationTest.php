@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Application\Notification;
 
-use App\Application\Notification\LogNotification;
+use App\Infrastructure\Notification\LogNotification;
 use App\Domain\Events\ImportCompleted;
 use Illuminate\Support\Facades\Log;
 use Tests\TestCase;

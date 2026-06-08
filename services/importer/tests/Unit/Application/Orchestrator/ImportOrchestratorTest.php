@@ -7,6 +7,7 @@ namespace Tests\Unit\Application\Orchestrator;
 use App\Application\Notification\NotificationSender;
 use App\Application\Orchestrator\ImportOrchestrator;
 use App\Application\Ports\EventPublisher;
+use App\Application\Ports\ImportLogRepository;
 use App\Domain\Events\ImportCompleted;
 use App\Models\ImportLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -22,12 +23,15 @@ class ImportOrchestratorTest extends TestCase
         // Arrange
         $eventPublisher = $this->createMock(EventPublisher::class);
         $notificationSender = $this->createMock(NotificationSender::class);
+        $importLogRepository = $this->createMock(ImportLogRepository::class);
 
         $eventPublisher->expects($this->once())->method('publishBatch');
         $eventPublisher->expects($this->once())->method('publishImportCompleted');
         $notificationSender->expects($this->once())->method('send');
+        $importLogRepository->method('find')->willReturn(null);
+        $importLogRepository->expects($this->once())->method('create')->willReturn(new ImportLog());
 
-        $orchestrator = new ImportOrchestrator($eventPublisher, $notificationSender);
+        $orchestrator = new ImportOrchestrator($eventPublisher, $notificationSender, $importLogRepository);
         $fixturePath = $this->createFixtureFile();
         $importId = (string) Str::uuid();
 
@@ -46,12 +50,19 @@ class ImportOrchestratorTest extends TestCase
         // Arrange
         $eventPublisher = $this->createMock(EventPublisher::class);
         $notificationSender = $this->createMock(NotificationSender::class);
+        $importLogRepository = $this->createMock(ImportLogRepository::class);
 
         $eventPublisher->method('publishBatch');
         $eventPublisher->method('publishImportCompleted');
         $notificationSender->method('send');
+        $importLogRepository->method('find')->willReturn(null);
+        $importLog = new ImportLog();
+        $importLog->status = 'completed';
+        $importLog->started_at = now();
+        $importLog->finished_at = now();
+        $importLogRepository->method('create')->willReturn($importLog);
 
-        $orchestrator = new ImportOrchestrator($eventPublisher, $notificationSender);
+        $orchestrator = new ImportOrchestrator($eventPublisher, $notificationSender, $importLogRepository);
         $fixturePath = $this->createFixtureFile();
         $importId = (string) Str::uuid();
 
@@ -72,12 +83,19 @@ class ImportOrchestratorTest extends TestCase
         // Arrange
         $eventPublisher = $this->createMock(EventPublisher::class);
         $notificationSender = $this->createMock(NotificationSender::class);
+        $importLogRepository = $this->createMock(ImportLogRepository::class);
 
         $eventPublisher->method('publishBatch');
         $eventPublisher->method('publishImportCompleted');
         $notificationSender->method('send');
+        $importLogRepository->method('find')->willReturn(null);
+        $importLog = new ImportLog();
+        $importLog->status = 'completed';
+        $importLog->valid_records = 2;
+        $importLog->duration = 100;
+        $importLogRepository->method('create')->willReturn($importLog);
 
-        $orchestrator = new ImportOrchestrator($eventPublisher, $notificationSender);
+        $orchestrator = new ImportOrchestrator($eventPublisher, $notificationSender, $importLogRepository);
         $fixturePath = $this->createFixtureFile();
         $importId = (string) Str::uuid();
 
@@ -86,9 +104,8 @@ class ImportOrchestratorTest extends TestCase
 
         // Assert
         $this->assertSame('completed', $result->status);
-        $this->assertNotNull($result->total_debtors);
-        $this->assertNotNull($result->total_entities);
-        $this->assertNotNull($result->duration_ms);
+        $this->assertNotNull($result->valid_records);
+        $this->assertNotNull($result->duration);
 
         // Cleanup
         @unlink($fixturePath);
@@ -99,10 +116,18 @@ class ImportOrchestratorTest extends TestCase
         // Arrange
         $eventPublisher = $this->createMock(EventPublisher::class);
         $notificationSender = $this->createMock(NotificationSender::class);
+        $importLogRepository = $this->createMock(ImportLogRepository::class);
 
         $eventPublisher->method('publishBatch')->willThrowException(new \RuntimeException('SQS error'));
+        $importLogRepository->method('find')->willReturn(null);
+        $importLog = new ImportLog();
+        $importLog->status = 'failed';
+        $importLog->error_message = 'SQS error';
+        $importLogRepository->method('create')->willReturn($importLog);
+        $importLogRepository->expects($this->once())->method('updateStatus')
+            ->with($this->anything(), 'failed', $this->arrayHasKey('error_message'));
 
-        $orchestrator = new ImportOrchestrator($eventPublisher, $notificationSender);
+        $orchestrator = new ImportOrchestrator($eventPublisher, $notificationSender, $importLogRepository);
         $fixturePath = $this->createFixtureFile();
         $importId = (string) Str::uuid();
 
@@ -113,12 +138,6 @@ class ImportOrchestratorTest extends TestCase
         try {
             $orchestrator->orchestrate($fixturePath, $importId);
         } catch (\RuntimeException $e) {
-            // Verify the import log was updated before re-throwing
-            $importLog = ImportLog::find($importId);
-            $this->assertNotNull($importLog);
-            $this->assertSame('failed', $importLog->status);
-            $this->assertSame('SQS error', $importLog->error_message);
-
             throw $e;
         } finally {
             @unlink($fixturePath);

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Application\Handlers;
 
 use App\Application\DTOs\DebtorProcessedEvent;
-use App\Application\Handlers\UpsertDebtorHandler;
+use App\Infrastructure\Handlers\UpsertDebtorHandler;
 use App\Models\Debtor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;

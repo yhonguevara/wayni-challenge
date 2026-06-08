@@ -31,6 +31,22 @@ class EntityControllerTest extends TestCase
         $response->assertJsonPath('data.entity_code', '00001');
     }
 
+    public function test_show_returns_entity_for_short_code(): void
+    {
+        // Arrange
+        Entity::create([
+            'entity_code' => '1',
+            'total_loan_amount' => 100000.00,
+        ]);
+
+        // Act
+        $response = $this->getJson('/api/entities/1');
+
+        // Assert
+        $response->assertStatus(200);
+        $response->assertJsonPath('data.entity_code', '1');
+    }
+
     public function test_show_returns_404_for_non_existent_code(): void
     {
         // Act
@@ -42,8 +58,8 @@ class EntityControllerTest extends TestCase
 
     public function test_show_returns_422_for_invalid_code_format(): void
     {
-        // Act — too short
-        $response = $this->getJson('/api/entities/123');
+        // Act — too long (exceeds 5 characters)
+        $response = $this->getJson('/api/entities/123456');
 
         // Assert
         $response->assertStatus(422);

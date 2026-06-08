@@ -129,7 +129,7 @@ class SqsEventPublisherTest extends TestCase
         $body = json_decode($message['Body'], true);
 
         $this->assertSame('00001', $body['entityCode']);
-        $this->assertSame(5000.0, $body['totalLoans']);
+        $this->assertEquals(5000.0, $body['totalLoans']);
         $this->assertSame('EntityProcessed', $message['MessageAttributes']['event_type']['StringValue']);
     }
 

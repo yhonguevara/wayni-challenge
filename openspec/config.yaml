@@ -111,3 +111,14 @@ completed_changes:
       - database-schema
       - development-environment
       - project-scaffolding
+  - name: phase-2-orchestration-query-api
+    completion_date: "2026-06-08"
+    verification_status: "PASS"
+    summary: "Phase 2 — Orchestration & Query API: ImportOrchestrator, ProcessBcraFile job, UploadController, notification system (Log/Webhook/SQS), event handlers (UpsertDebtor, UpsertEntity, LogImportCompletion), Query API endpoints (4 GET), Clean Architecture refactor, 135 tests passing"
+    tasks_completed: 33
+    specs_synced:
+      - import-orchestration
+      - file-ingestion
+      - event-handlers
+      - notification-system
+      - query-api-endpoints

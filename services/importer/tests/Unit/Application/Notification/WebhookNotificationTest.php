@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Application\Notification;
 
-use App\Application\Notification\WebhookNotification;
+use App\Infrastructure\Notification\WebhookNotification;
 use App\Domain\Events\ImportCompleted;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;

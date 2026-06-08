@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Application\Handlers;
 
 use App\Application\DTOs\ImportCompletedEvent;
-use App\Application\Handlers\LogImportCompletionHandler;
+use App\Infrastructure\Handlers\LogImportCompletionHandler;
 use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 

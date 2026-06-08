@@ -28,7 +28,7 @@ class UploadControllerTest extends TestCase
 
         // Assert
         $response->assertStatus(202);
-        $response->assertJsonStructure(['import_id', 'status', 'message']);
+        $response->assertJsonStructure(['import_log_id', 'status', 'message']);
         $this->assertSame('queued', $response->json('status'));
     }
 
@@ -42,7 +42,7 @@ class UploadControllerTest extends TestCase
 
         // Assert
         $response->assertStatus(202);
-        $response->assertJsonStructure(['import_id', 'status', 'message']);
+        $response->assertJsonStructure(['import_log_id', 'status', 'message']);
     }
 
     public function test_post_upload_with_both_file_and_s3_key_returns_202(): void
@@ -94,7 +94,7 @@ class UploadControllerTest extends TestCase
         $response = $this->postJson('/api/upload', ['file' => $file]);
 
         // Assert
-        $importId = $response->json('import_id');
+        $importId = $response->json('import_log_id');
         $this->assertDatabaseHas('import_logs', [
             'id' => $importId,
             'status' => 'pending',

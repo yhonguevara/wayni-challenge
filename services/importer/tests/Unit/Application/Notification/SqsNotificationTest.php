@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Application\Notification;
 
-use App\Application\Notification\SqsNotification;
+use App\Infrastructure\Notification\SqsNotification;
 use App\Domain\Events\ImportCompleted;
 use Aws\MockHandler;
 use Aws\Result;

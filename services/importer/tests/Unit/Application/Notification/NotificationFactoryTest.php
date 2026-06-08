@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Application\Notification;
 
-use App\Application\Notification\LogNotification;
-use App\Application\Notification\NotificationFactory;
-use App\Application\Notification\SqsNotification;
-use App\Application\Notification\WebhookNotification;
+use App\Infrastructure\Notification\LogNotification;
+use App\Infrastructure\Notification\NotificationFactory;
+use App\Infrastructure\Notification\SqsNotification;
+use App\Infrastructure\Notification\WebhookNotification;
 use InvalidArgumentException;
 use Tests\TestCase;
 

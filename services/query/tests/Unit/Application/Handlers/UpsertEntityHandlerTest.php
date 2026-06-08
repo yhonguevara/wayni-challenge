@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Application\Handlers;
 
 use App\Application\DTOs\EntityProcessedEvent;
-use App\Application\Handlers\UpsertEntityHandler;
+use App\Infrastructure\Handlers\UpsertEntityHandler;
 use App\Models\Entity;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;

@@ -65,6 +65,7 @@ class DebtorControllerTest extends TestCase
         $response->assertJsonCount(2, 'data');
         $response->assertJsonPath('data.0.identification_number', '20345123459');
         $response->assertJsonPath('data.1.identification_number', '20345123460');
+        $response->assertJsonPath('meta.count', 2);
     }
 
     public function test_top_returns_422_for_invalid_n(): void
