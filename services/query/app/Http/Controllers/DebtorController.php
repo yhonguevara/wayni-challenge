@@ -29,7 +29,9 @@ final class DebtorController extends Controller
             ->limit($n)
             ->get();
 
-        return DebtorResource::collection($debtors);
+        return DebtorResource::collection($debtors)->additional([
+            'meta' => ['count' => $debtors->count()]
+        ]);
     }
 
     public function index(IndexDebtorsRequest $request): AnonymousResourceCollection

@@ -16,7 +16,7 @@ final class ShowEntityRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'code' => ['required', 'string', 'size:5', 'regex:/^\d{5}$/'],
+            'code' => ['required', 'string', 'max:5', 'regex:/^\d{1,5}$/'],
         ];
     }
 

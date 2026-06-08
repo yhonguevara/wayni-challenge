@@ -14,10 +14,10 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->string('filename', 255);
             $table->string('status', 20)->default('pending');
-            $table->integer('total_lines')->nullable();
-            $table->integer('total_debtors')->nullable();
-            $table->integer('total_entities')->nullable();
-            $table->integer('duration_ms')->nullable();
+            $table->integer('total_records')->nullable();
+            $table->integer('valid_records')->nullable();
+            $table->integer('invalid_records')->nullable();
+            $table->integer('duration')->nullable();
             $table->text('error_message')->nullable();
             $table->timestampTz('started_at')->nullable();
             $table->timestampTz('finished_at')->nullable();

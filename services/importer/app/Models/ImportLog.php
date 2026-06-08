@@ -24,10 +24,10 @@ class ImportLog extends Model
         'id',
         'filename',
         'status',
-        'total_lines',
-        'total_debtors',
-        'total_entities',
-        'duration_ms',
+        'total_records',
+        'valid_records',
+        'invalid_records',
+        'duration',
         'error_message',
         'started_at',
         'finished_at',
@@ -38,10 +38,10 @@ class ImportLog extends Model
         return [
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
-            'total_lines' => 'integer',
-            'total_debtors' => 'integer',
-            'total_entities' => 'integer',
-            'duration_ms' => 'integer',
+            'total_records' => 'integer',
+            'valid_records' => 'integer',
+            'invalid_records' => 'integer',
+            'duration' => 'integer',
         ];
     }
 }

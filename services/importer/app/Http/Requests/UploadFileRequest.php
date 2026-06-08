@@ -37,6 +37,7 @@ final class UploadFileRequest extends FormRequest
                 'required_without:s3_key',
                 'file',
                 'mimes:txt',
+                'mimetypes:text/plain',
                 'max:6291456', // 6GB in KB
             ],
             's3_key' => [
