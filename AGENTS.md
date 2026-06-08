@@ -13,12 +13,13 @@ Sistema de procesamiento de padrón de deudores del BCRA (Banco Central de la Re
 
 ## Architecture
 
-El sistema está compuesto por dos servicios independientes:
+El sistema está compuesto por tres servicios independientes:
 
 - **Importer Service** (Write Side): Procesa archivo TXT del BCRA, publica eventos a SQS
 - **Query API** (Read Side): Consume eventos de SQS, mantiene read model, expone API de consulta
+- **Query Worker**: Consume eventos de SQS y actualiza la base de datos del query service
 
-Cada servicio tiene su propia base de datos PostgreSQL. La comunicación es asíncrona vía SQS.
+Cada servicio tiene su propia base de datos PostgreSQL (database-per-service). La comunicación es asíncrona vía SQS (3 colas: `debtor-events`, `entity-events`, `import-completed`).
 
 ## Documentation Index
 
@@ -42,22 +43,18 @@ Cada servicio tiene su propia base de datos PostgreSQL. La comunicación es así
 ## Quick Start
 
 ```bash
-# Clonar repositorio
+# Clone repository
 git clone <repo-url>
 cd wayni-challenge
 
-# Levantar servicios
-docker-compose up -d
+# Start all 6 services
+docker compose up -d
 
-# Ejecutar migraciones
-docker-compose exec importer php artisan migrate
-docker-compose exec query php artisan migrate
+# Run migrations and setup LocalStack
+./init.sh
 
-# Setup LocalStack (crear bucket S3 y colas SQS)
-docker-compose exec importer php artisan localstack:setup
-
-# Procesar archivo
-docker-compose exec importer php artisan bcra:process /path/to/deudores.txt
+# Process file
+docker compose exec importer php artisan bcra:process /path/to/deudores.txt
 ```
 
 ## API Endpoints
@@ -66,10 +63,10 @@ docker-compose exec importer php artisan bcra:process /path/to/deudores.txt
 - `POST /upload` - Subir archivo TXT para procesamiento
 
 ### Query API (puerto 8000)
-- `GET /deudores/{cuit}` - Consultar deudor por CUIT
-- `GET /entidades/{codigo}` - Consultar entidad por código
-- `GET /deudores/top/{n}` - Top N deudores por préstamos
-- `GET /deudores?situacion=X` - Listar deudores con filtros
+- `GET /debtors/{cuit}` - Consultar deudor por CUIT
+- `GET /entities/{code}` - Consultar entidad por código
+- `GET /debtors/top/{n}` - Top N deudores por préstamos
+- `GET /debtors?situation=X` - Listar deudores con filtros
 
 ## Development
 
