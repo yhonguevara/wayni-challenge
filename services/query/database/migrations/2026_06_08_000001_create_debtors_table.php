@@ -18,7 +18,7 @@ return new class extends Migration
             $table->timestampsTz();
 
             $table->index('max_situation', 'idx_debtors_situation');
-            $table->index('total_loan_amount', 'idx_debtors_loan_amount');
+            $table->index(['total_loan_amount' => 'desc'], 'idx_debtors_loan_amount');
         });
     }
 
