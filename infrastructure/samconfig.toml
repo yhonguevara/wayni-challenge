@@ -1,0 +1,13 @@
+# SAM CLI configuration for Wayni BCRA Processor
+
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "wayni-bcra-processor"
+resolve_s3 = true
+s3_prefix = "wayni-bcra"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Environment=dev"
+image_repositories = []

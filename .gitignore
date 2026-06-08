@@ -1,0 +1,36 @@
+# Dependencies
+vendor/
+node_modules/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Docker overrides
+docker-compose.override.yml
+
+# Laravel
+storage/*.key
+storage/app/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+bootstrap/cache/
+.phpunit.result.cache
+
+.atl
+deudores.txt

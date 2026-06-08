@@ -1,0 +1,87 @@
+services:
+  importer-db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: wayni_importer
+      POSTGRES_USER: wayni
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - importer-db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wayni"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  query-db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: wayni_query
+      POSTGRES_USER: wayni
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - query-db-data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wayni"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  localstack:
+    image: localstack/localstack:4.14
+    environment:
+      SERVICES: s3,sqs
+      DEFAULT_REGION: us-east-1
+      DEBUG: "0"
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstack-data:/var/lib/localstack
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  importer-service:
+    build:
+      context: ./importer-service
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8000"
+    env_file:
+      - ./importer-service/.env
+    depends_on:
+      importer-db:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    volumes:
+      - ./importer-service:/app
+      - /app/vendor
+
+  query-service:
+    build:
+      context: ./query-service
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./query-service/.env
+    depends_on:
+      query-db:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    volumes:
+      - ./query-service:/app
+      - /app/vendor
+
+volumes:
+  importer-db-data:
+  query-db-data:
+  localstack-data:

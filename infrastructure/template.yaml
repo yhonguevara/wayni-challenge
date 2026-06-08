@@ -1,0 +1,331 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Wayni BCRA Deudores Processor - Production Infrastructure
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Deployment environment
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC for ECS tasks
+
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Subnets for ECS tasks (use private subnets with NAT)
+
+  EcrRepositoryUri:
+    Type: String
+    Description: ECR repository URI for container images
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: php85
+
+Resources:
+  # ========================
+  # S3 - File Storage
+  # ========================
+  BcraFilesBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub wayni-bcra-files-${Environment}
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - PUT
+              - POST
+              - GET
+            AllowedOrigins:
+              - '*'
+            MaxAge: 3600
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: wayni-bcra
+
+  # ========================
+  # SQS - Event Queues
+  # ========================
+  DebtorEventsDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub wayni-debtor-events-dlq-${Environment}
+      MessageRetentionPeriod: 1209600  # 14 days
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  DebtorEventsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub wayni-debtor-events-${Environment}
+      VisibilityTimeout: 300
+      MessageRetentionPeriod: 345600  # 4 days
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt DebtorEventsDeadLetterQueue.Arn
+        maxReceiveCount: 3
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  EntityEventsDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub wayni-entity-events-dlq-${Environment}
+      MessageRetentionPeriod: 1209600  # 14 days
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  EntityEventsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub wayni-entity-events-${Environment}
+      VisibilityTimeout: 300
+      MessageRetentionPeriod: 345600  # 4 days
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt EntityEventsDeadLetterQueue.Arn
+        maxReceiveCount: 3
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ========================
+  # CloudWatch Log Groups
+  # ========================
+  ImporterLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /ecs/wayni-importer-${Environment}
+      RetentionInDays: 30
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  QueryLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /ecs/wayni-query-${Environment}
+      RetentionInDays: 30
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ========================
+  # IAM Roles
+  # ========================
+  EcsTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub wayni-ecs-execution-${Environment}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: EcrAndLogsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+
+  EcsTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub wayni-ecs-task-${Environment}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: S3AccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt BcraFilesBucket.Arn
+                  - !Sub '${BcraFilesBucket.Arn}/*'
+        - PolicyName: SqsAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource:
+                  - !GetAtt DebtorEventsQueue.Arn
+                  - !GetAtt EntityEventsQueue.Arn
+
+  # ========================
+  # ECS Cluster
+  # ========================
+  EcsCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub wayni-cluster-${Environment}
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ========================
+  # ECS Task Definitions
+  # ========================
+  ImporterTaskDef:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub wayni-importer-${Environment}
+      Cpu: '4096'
+      Memory: '8192'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt EcsTaskRole.Arn
+      ContainerDefinitions:
+        - Name: importer
+          Image: !Sub ${EcrRepositoryUri}/wayni-importer:${Environment}
+          Essential: true
+          PortMappings:
+            - ContainerPort: 8000
+              Protocol: tcp
+          Environment:
+            - Name: APP_ENV
+              Value: !Ref Environment
+            - Name: QUEUE_CONNECTION
+              Value: sqs
+            - Name: FILESYSTEM_DISK
+              Value: s3
+            - Name: AWS_DEFAULT_REGION
+              Value: !Ref AWS::Region
+            - Name: S3_BUCKET
+              Value: !Ref BcraFilesBucket
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref ImporterLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: importer
+
+  QueryTaskDef:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub wayni-query-${Environment}
+      Cpu: '4096'
+      Memory: '8192'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt EcsTaskRole.Arn
+      ContainerDefinitions:
+        - Name: query
+          Image: !Sub ${EcrRepositoryUri}/wayni-query:${Environment}
+          Essential: true
+          PortMappings:
+            - ContainerPort: 8000
+              Protocol: tcp
+          Environment:
+            - Name: APP_ENV
+              Value: !Ref Environment
+            - Name: QUEUE_CONNECTION
+              Value: sqs
+            - Name: AWS_DEFAULT_REGION
+              Value: !Ref AWS::Region
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref QueryLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: query
+
+  # ========================
+  # API Gateway - HTTP API
+  # ========================
+  QueryHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: !Ref Environment
+      CorsConfiguration:
+        AllowOrigins:
+          - '*'
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+
+Outputs:
+  BcraFilesBucketName:
+    Description: S3 bucket for BCRA files
+    Value: !Ref BcraFilesBucket
+
+  DebtorEventsQueueUrl:
+    Description: SQS queue URL for debtor events
+    Value: !Ref DebtorEventsQueue
+
+  EntityEventsQueueUrl:
+    Description: SQS queue URL for entity events
+    Value: !Ref EntityEventsQueue
+
+  QueryHttpApiUrl:
+    Description: Query service HTTP API endpoint
+    Value: !GetAtt QueryHttpApi.ApiEndpoint
+
+  EcsClusterName:
+    Description: ECS cluster name
+    Value: !Ref EcsCluster
+
+  ImporterTaskDefArn:
+    Description: Importer task definition ARN
+    Value: !Ref ImporterTaskDef
+
+  QueryTaskDefArn:
+    Description: Query task definition ARN
+    Value: !Ref QueryTaskDef
