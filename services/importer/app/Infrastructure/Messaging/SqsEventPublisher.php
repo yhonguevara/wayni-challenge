@@ -25,20 +25,55 @@ final class SqsEventPublisher implements EventPublisher
         private readonly SqsClient $client,
         private readonly string $debtorQueueUrl,
         private readonly string $entityQueueUrl,
+        private readonly string $importCompletedQueueUrl,
     ) {}
 
     /**
-     * Publish a single domain event to the appropriate SQS queue.
+     * Publish a DebtorProcessed event to the debtor SQS queue.
      */
-    public function publish(DomainEvent $event): void
+    public function publishDebtorProcessed(DebtorProcessed $event): void
     {
         $this->client->sendMessage([
-            'QueueUrl' => $this->resolveQueueUrl($event),
+            'QueueUrl' => $this->debtorQueueUrl,
             'MessageBody' => json_encode($event->toArray(), JSON_THROW_ON_ERROR),
             'MessageAttributes' => [
                 'event_type' => [
                     'DataType' => 'String',
-                    'StringValue' => $this->resolveEventTypeName($event),
+                    'StringValue' => 'DebtorProcessed',
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * Publish an EntityProcessed event to the entity SQS queue.
+     */
+    public function publishEntityProcessed(EntityProcessed $event): void
+    {
+        $this->client->sendMessage([
+            'QueueUrl' => $this->entityQueueUrl,
+            'MessageBody' => json_encode($event->toArray(), JSON_THROW_ON_ERROR),
+            'MessageAttributes' => [
+                'event_type' => [
+                    'DataType' => 'String',
+                    'StringValue' => 'EntityProcessed',
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * Publish an ImportCompleted event to the import-completed SQS queue.
+     */
+    public function publishImportCompleted(ImportCompleted $event): void
+    {
+        $this->client->sendMessage([
+            'QueueUrl' => $this->importCompletedQueueUrl,
+            'MessageBody' => json_encode($event->toArray(), JSON_THROW_ON_ERROR),
+            'MessageAttributes' => [
+                'event_type' => [
+                    'DataType' => 'String',
+                    'StringValue' => 'ImportCompleted',
                 ],
             ],
         ]);
@@ -115,8 +150,9 @@ final class SqsEventPublisher implements EventPublisher
     private function resolveQueueUrl(DomainEvent $event): string
     {
         return match ($event::class) {
-            DebtorProcessed::class, ImportCompleted::class => $this->debtorQueueUrl,
+            DebtorProcessed::class => $this->debtorQueueUrl,
             EntityProcessed::class => $this->entityQueueUrl,
+            ImportCompleted::class => $this->importCompletedQueueUrl,
             default => throw new \InvalidArgumentException(
                 sprintf('Unknown event type: %s', $event::class),
             ),

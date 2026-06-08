@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Application\Ports;
 
+use App\Domain\Events\DebtorProcessed;
 use App\Domain\Events\DomainEvent;
+use App\Domain\Events\EntityProcessed;
+use App\Domain\Events\ImportCompleted;
 
 /**
  * Port for publishing domain events.
@@ -15,9 +18,19 @@ use App\Domain\Events\DomainEvent;
 interface EventPublisher
 {
     /**
-     * Publish a single domain event.
+     * Publish a DebtorProcessed event.
      */
-    public function publish(DomainEvent $event): void;
+    public function publishDebtorProcessed(DebtorProcessed $event): void;
+
+    /**
+     * Publish an EntityProcessed event.
+     */
+    public function publishEntityProcessed(EntityProcessed $event): void;
+
+    /**
+     * Publish an ImportCompleted event.
+     */
+    public function publishImportCompleted(ImportCompleted $event): void;
 
     /**
      * Publish a batch of domain events.

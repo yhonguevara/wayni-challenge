@@ -6,6 +6,7 @@ namespace Tests\Feature\Infrastructure\Messaging;
 
 use App\Domain\Events\DebtorProcessed;
 use App\Domain\Events\EntityProcessed;
+use App\Domain\Events\ImportCompleted;
 use App\Infrastructure\Messaging\SqsEventPublisher;
 use Aws\Sqs\SqsClient;
 use PHPUnit\Framework\TestCase;
@@ -21,6 +22,7 @@ class SqsEventPublisherTest extends TestCase
     private ?SqsClient $client = null;
     private string $debtorQueueUrl = '';
     private string $entityQueueUrl = '';
+    private string $importCompletedQueueUrl = '';
 
     protected function setUp(): void
     {
@@ -50,18 +52,23 @@ class SqsEventPublisherTest extends TestCase
         $entityResult = $this->client->createQueue(['QueueName' => 'entity-events']);
         $this->entityQueueUrl = $entityResult['QueueUrl'];
 
+        $importResult = $this->client->createQueue(['QueueName' => 'import-completed']);
+        $this->importCompletedQueueUrl = $importResult['QueueUrl'];
+
         // Purge queues before each test
         $this->client->purgeQueue(['QueueUrl' => $this->debtorQueueUrl]);
         $this->client->purgeQueue(['QueueUrl' => $this->entityQueueUrl]);
+        $this->client->purgeQueue(['QueueUrl' => $this->importCompletedQueueUrl]);
     }
 
-    public function test_publish_single_debtor_event(): void
+    public function test_publish_debtor_processed_event(): void
     {
         // Arrange
         $publisher = new SqsEventPublisher(
             $this->client,
             $this->debtorQueueUrl,
             $this->entityQueueUrl,
+            $this->importCompletedQueueUrl,
         );
 
         $event = new DebtorProcessed(
@@ -72,7 +79,7 @@ class SqsEventPublisherTest extends TestCase
         );
 
         // Act
-        $publisher->publish($event);
+        $publisher->publishDebtorProcessed($event);
 
         // Assert — message should be in debtor queue
         $result = $this->client->receiveMessage([
@@ -91,13 +98,14 @@ class SqsEventPublisherTest extends TestCase
         $this->assertSame('DebtorProcessed', $message['MessageAttributes']['event_type']['StringValue']);
     }
 
-    public function test_publish_single_entity_event(): void
+    public function test_publish_entity_processed_event(): void
     {
         // Arrange
         $publisher = new SqsEventPublisher(
             $this->client,
             $this->debtorQueueUrl,
             $this->entityQueueUrl,
+            $this->importCompletedQueueUrl,
         );
 
         $event = new EntityProcessed(
@@ -107,7 +115,7 @@ class SqsEventPublisherTest extends TestCase
         );
 
         // Act
-        $publisher->publish($event);
+        $publisher->publishEntityProcessed($event);
 
         // Assert — message should be in entity queue
         $result = $this->client->receiveMessage([
@@ -125,6 +133,45 @@ class SqsEventPublisherTest extends TestCase
         $this->assertSame('EntityProcessed', $message['MessageAttributes']['event_type']['StringValue']);
     }
 
+    public function test_publish_import_completed_event(): void
+    {
+        // Arrange
+        $publisher = new SqsEventPublisher(
+            $this->client,
+            $this->debtorQueueUrl,
+            $this->entityQueueUrl,
+            $this->importCompletedQueueUrl,
+        );
+
+        $event = new ImportCompleted(
+            filename: 'deudores.txt',
+            totalDebtors: 150,
+            totalEntities: 5,
+            durationMs: 2500,
+            completedAt: new \DateTimeImmutable('2026-06-08T12:00:00Z'),
+        );
+
+        // Act
+        $publisher->publishImportCompleted($event);
+
+        // Assert — message should be in import-completed queue
+        $result = $this->client->receiveMessage([
+            'QueueUrl' => $this->importCompletedQueueUrl,
+            'MaxNumberOfMessages' => 10,
+            'MessageAttributeNames' => ['All'],
+        ]);
+
+        $this->assertNotEmpty($result['Messages']);
+        $message = $result['Messages'][0];
+        $body = json_decode($message['Body'], true);
+
+        $this->assertSame('deudores.txt', $body['filename']);
+        $this->assertSame(150, $body['totalDebtors']);
+        $this->assertSame(5, $body['totalEntities']);
+        $this->assertSame(2500, $body['durationMs']);
+        $this->assertSame('ImportCompleted', $message['MessageAttributes']['event_type']['StringValue']);
+    }
+
     public function test_publish_batch_events(): void
     {
         // Arrange
@@ -132,6 +179,7 @@ class SqsEventPublisherTest extends TestCase
             $this->client,
             $this->debtorQueueUrl,
             $this->entityQueueUrl,
+            $this->importCompletedQueueUrl,
         );
 
         $events = [
@@ -164,6 +212,7 @@ class SqsEventPublisherTest extends TestCase
             $this->client,
             $this->debtorQueueUrl,
             $this->entityQueueUrl,
+            $this->importCompletedQueueUrl,
         );
 
         $events = [];
