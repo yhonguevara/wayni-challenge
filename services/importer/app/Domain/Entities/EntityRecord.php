@@ -10,6 +10,6 @@ final readonly class EntityRecord
 {
     public function __construct(
         public string $entityCode,
-        public Amount $loansAmount,
+        public Amount $totalLoans,
     ) {}
 }

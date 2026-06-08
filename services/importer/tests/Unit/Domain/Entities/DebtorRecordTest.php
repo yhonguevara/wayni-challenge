@@ -23,15 +23,15 @@ class DebtorRecordTest extends TestCase
         // Act
         $record = new DebtorRecord(
             identificationNumber: $cuit,
-            situation: $situation,
-            loansAmount: $amount,
+            maxSituation: $situation,
+            totalLoans: $amount,
             entityCode: $entityCode,
         );
 
         // Assert
         $this->assertSame($cuit, $record->identificationNumber);
-        $this->assertSame($situation, $record->situation);
-        $this->assertSame($amount, $record->loansAmount);
+        $this->assertSame($situation, $record->maxSituation);
+        $this->assertSame($amount, $record->totalLoans);
         $this->assertSame('00001', $record->entityCode);
     }
 
@@ -40,14 +40,14 @@ class DebtorRecordTest extends TestCase
         // Arrange
         $record = new DebtorRecord(
             identificationNumber: Cuit::fromString('20345123458'),
-            situation: Situation::from('01'),
-            loansAmount: new Amount(1500.5),
+            maxSituation: Situation::from('01'),
+            totalLoans: new Amount(1500.5),
             entityCode: '00001',
         );
 
         // Act & Assert - readonly properties cannot be modified
         $this->assertInstanceOf(Cuit::class, $record->identificationNumber);
-        $this->assertInstanceOf(Situation::class, $record->situation);
-        $this->assertInstanceOf(Amount::class, $record->loansAmount);
+        $this->assertInstanceOf(Situation::class, $record->maxSituation);
+        $this->assertInstanceOf(Amount::class, $record->totalLoans);
     }
 }

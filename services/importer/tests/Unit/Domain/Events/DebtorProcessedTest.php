@@ -16,6 +16,7 @@ class DebtorProcessedTest extends TestCase
         $maxSituation = '05';
         $totalLoans = 1500.5;
         $importId = 'import-123';
+        $processedAt = new \DateTimeImmutable('2026-06-08T12:00:00Z');
 
         // Act
         $event = new DebtorProcessed(
@@ -23,6 +24,7 @@ class DebtorProcessedTest extends TestCase
             maxSituation: $maxSituation,
             totalLoans: $totalLoans,
             importId: $importId,
+            processedAt: $processedAt,
         );
 
         // Assert
@@ -30,16 +32,20 @@ class DebtorProcessedTest extends TestCase
         $this->assertSame('05', $event->maxSituation);
         $this->assertSame(1500.5, $event->totalLoans);
         $this->assertSame('import-123', $event->importId);
+        $this->assertSame($processedAt, $event->processedAt);
     }
 
     public function test_properties_are_readonly(): void
     {
         // Arrange
+        $processedAt = new \DateTimeImmutable('2026-06-08T12:00:00Z');
+
         $event = new DebtorProcessed(
             identificationNumber: '20345123458',
             maxSituation: '05',
             totalLoans: 1500.5,
             importId: 'import-123',
+            processedAt: $processedAt,
         );
 
         // Act & Assert - readonly properties cannot be modified
@@ -47,16 +53,20 @@ class DebtorProcessedTest extends TestCase
         $this->assertSame('05', $event->maxSituation);
         $this->assertSame(1500.5, $event->totalLoans);
         $this->assertSame('import-123', $event->importId);
+        $this->assertSame($processedAt, $event->processedAt);
     }
 
     public function test_to_array_returns_correct_payload(): void
     {
         // Arrange
+        $processedAt = new \DateTimeImmutable('2026-06-08T12:00:00Z');
+
         $event = new DebtorProcessed(
             identificationNumber: '20345123458',
             maxSituation: '05',
             totalLoans: 1500.5,
             importId: 'import-123',
+            processedAt: $processedAt,
         );
 
         // Act
@@ -68,17 +78,20 @@ class DebtorProcessedTest extends TestCase
         $this->assertSame('05', $array['maxSituation']);
         $this->assertSame(1500.5, $array['totalLoans']);
         $this->assertSame('import-123', $array['importId']);
-        $this->assertArrayHasKey('occurredAt', $array);
+        $this->assertSame('2026-06-08T12:00:00Z', $array['occurredAt']);
     }
 
-    public function test_occurred_at_returns_date_time_immutable(): void
+    public function test_occurred_at_returns_processed_at(): void
     {
         // Arrange
+        $processedAt = new \DateTimeImmutable('2026-06-08T12:00:00Z');
+
         $event = new DebtorProcessed(
             identificationNumber: '20345123458',
             maxSituation: '05',
             totalLoans: 1500.5,
             importId: 'import-123',
+            processedAt: $processedAt,
         );
 
         // Act
@@ -86,5 +99,28 @@ class DebtorProcessedTest extends TestCase
 
         // Assert
         $this->assertInstanceOf(\DateTimeImmutable::class, $occurredAt);
+        $this->assertSame($processedAt, $occurredAt);
+    }
+
+    public function test_occurred_at_defaults_to_current_time(): void
+    {
+        // Arrange
+        $before = new \DateTimeImmutable();
+
+        $event = new DebtorProcessed(
+            identificationNumber: '20345123458',
+            maxSituation: '05',
+            totalLoans: 1500.5,
+            importId: 'import-123',
+        );
+
+        $after = new \DateTimeImmutable();
+
+        // Act
+        $occurredAt = $event->occurredAt();
+
+        // Assert
+        $this->assertGreaterThanOrEqual($before, $occurredAt);
+        $this->assertLessThanOrEqual($after, $occurredAt);
     }
 }

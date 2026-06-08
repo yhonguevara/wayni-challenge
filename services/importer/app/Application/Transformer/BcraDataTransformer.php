@@ -154,8 +154,8 @@ final class BcraDataTransformer
         foreach ($accumulator as $identificationNumber => $data) {
             $debtors[] = new DebtorRecord(
                 identificationNumber: Cuit::fromString((string) $identificationNumber),
-                situation: $data['situation'],
-                loansAmount: $data['loans'],
+                maxSituation: $data['situation'],
+                totalLoans: $data['loans'],
                 entityCode: $data['entityCode'],
             );
         }
@@ -176,7 +176,7 @@ final class BcraDataTransformer
         foreach ($accumulator as $entityCode => $data) {
             $entities[] = new EntityRecord(
                 entityCode: $entityCode,
-                loansAmount: $data['loans'],
+                totalLoans: $data['loans'],
             );
         }
 

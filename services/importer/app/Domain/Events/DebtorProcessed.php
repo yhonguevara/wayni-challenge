@@ -11,6 +11,7 @@ final readonly class DebtorProcessed implements DomainEvent
         public string $maxSituation,
         public float $totalLoans,
         public string $importId,
+        public \DateTimeImmutable $processedAt = new \DateTimeImmutable(),
     ) {}
 
     public function toArray(): array
@@ -20,12 +21,12 @@ final readonly class DebtorProcessed implements DomainEvent
             'maxSituation' => $this->maxSituation,
             'totalLoans' => $this->totalLoans,
             'importId' => $this->importId,
-            'occurredAt' => $this->occurredAt()->format('Y-m-d\TH:i:s\Z'),
+            'occurredAt' => $this->processedAt->format('Y-m-d\TH:i:s\Z'),
         ];
     }
 
     public function occurredAt(): \DateTimeImmutable
     {
-        return new \DateTimeImmutable();
+        return $this->processedAt;
     }
 }

@@ -160,4 +160,31 @@ class SituationTest extends TestCase
             $this->assertSame($expectedSeverities[$index], $situation->severity(), "Severity for code {$code} should be {$expectedSeverities[$index]}");
         }
     }
+
+    public function test_worst_returns_unrecoverable(): void
+    {
+        // Act
+        $worst = Situation::worst();
+
+        // Assert
+        $this->assertSame(Situation::Unrecoverable, $worst);
+        $this->assertSame('05', $worst->value);
+        $this->assertSame(6, $worst->severity());
+    }
+
+    public function test_worst_is_worse_than_all_other_situations(): void
+    {
+        // Arrange
+        $worst = Situation::worst();
+        $allCodes = ['01', '03', '04', '05', '11', '21', '23'];
+
+        foreach ($allCodes as $code) {
+            $situation = Situation::from($code);
+
+            // Assert — worst is worse than or equal to every situation
+            if ($situation !== $worst) {
+                $this->assertTrue($worst->isWorseThan($situation), "worst() should be worse than {$code}");
+            }
+        }
+    }
 }

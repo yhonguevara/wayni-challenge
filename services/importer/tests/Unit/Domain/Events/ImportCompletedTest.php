@@ -12,57 +12,61 @@ class ImportCompletedTest extends TestCase
     public function test_construction_with_all_properties(): void
     {
         // Arrange
-        $importId = 'import-123';
-        $totalRecords = 100;
-        $validRecords = 95;
-        $invalidRecords = 5;
-        $durationMs = 1500;
+        $filename = 'deudores.txt';
+        $totalDebtors = 150;
+        $totalEntities = 5;
+        $durationMs = 2500;
+        $completedAt = new \DateTimeImmutable('2026-06-08T12:00:00Z');
 
         // Act
         $event = new ImportCompleted(
-            importId: $importId,
-            totalRecords: $totalRecords,
-            validRecords: $validRecords,
-            invalidRecords: $invalidRecords,
+            filename: $filename,
+            totalDebtors: $totalDebtors,
+            totalEntities: $totalEntities,
             durationMs: $durationMs,
+            completedAt: $completedAt,
         );
 
         // Assert
-        $this->assertSame('import-123', $event->importId);
-        $this->assertSame(100, $event->totalRecords);
-        $this->assertSame(95, $event->validRecords);
-        $this->assertSame(5, $event->invalidRecords);
-        $this->assertSame(1500, $event->durationMs);
+        $this->assertSame('deudores.txt', $event->filename);
+        $this->assertSame(150, $event->totalDebtors);
+        $this->assertSame(5, $event->totalEntities);
+        $this->assertSame(2500, $event->durationMs);
+        $this->assertSame($completedAt, $event->completedAt);
     }
 
     public function test_properties_are_readonly(): void
     {
         // Arrange
+        $completedAt = new \DateTimeImmutable('2026-06-08T12:00:00Z');
+
         $event = new ImportCompleted(
-            importId: 'import-123',
-            totalRecords: 100,
-            validRecords: 95,
-            invalidRecords: 5,
-            durationMs: 1500,
+            filename: 'deudores.txt',
+            totalDebtors: 150,
+            totalEntities: 5,
+            durationMs: 2500,
+            completedAt: $completedAt,
         );
 
         // Act & Assert - readonly properties cannot be modified
-        $this->assertSame('import-123', $event->importId);
-        $this->assertSame(100, $event->totalRecords);
-        $this->assertSame(95, $event->validRecords);
-        $this->assertSame(5, $event->invalidRecords);
-        $this->assertSame(1500, $event->durationMs);
+        $this->assertSame('deudores.txt', $event->filename);
+        $this->assertSame(150, $event->totalDebtors);
+        $this->assertSame(5, $event->totalEntities);
+        $this->assertSame(2500, $event->durationMs);
+        $this->assertSame($completedAt, $event->completedAt);
     }
 
     public function test_to_array_returns_correct_payload(): void
     {
         // Arrange
+        $completedAt = new \DateTimeImmutable('2026-06-08T12:00:00Z');
+
         $event = new ImportCompleted(
-            importId: 'import-123',
-            totalRecords: 100,
-            validRecords: 95,
-            invalidRecords: 5,
-            durationMs: 1500,
+            filename: 'deudores.txt',
+            totalDebtors: 150,
+            totalEntities: 5,
+            durationMs: 2500,
+            completedAt: $completedAt,
         );
 
         // Act
@@ -70,23 +74,24 @@ class ImportCompletedTest extends TestCase
 
         // Assert
         $this->assertIsArray($array);
-        $this->assertSame('import-123', $array['importId']);
-        $this->assertSame(100, $array['totalRecords']);
-        $this->assertSame(95, $array['validRecords']);
-        $this->assertSame(5, $array['invalidRecords']);
-        $this->assertSame(1500, $array['durationMs']);
-        $this->assertArrayHasKey('occurredAt', $array);
+        $this->assertSame('deudores.txt', $array['filename']);
+        $this->assertSame(150, $array['totalDebtors']);
+        $this->assertSame(5, $array['totalEntities']);
+        $this->assertSame(2500, $array['durationMs']);
+        $this->assertSame('2026-06-08T12:00:00Z', $array['completedAt']);
     }
 
-    public function test_occurred_at_returns_date_time_immutable(): void
+    public function test_occurred_at_returns_completed_at(): void
     {
         // Arrange
+        $completedAt = new \DateTimeImmutable('2026-06-08T12:00:00Z');
+
         $event = new ImportCompleted(
-            importId: 'import-123',
-            totalRecords: 100,
-            validRecords: 95,
-            invalidRecords: 5,
-            durationMs: 1500,
+            filename: 'deudores.txt',
+            totalDebtors: 150,
+            totalEntities: 5,
+            durationMs: 2500,
+            completedAt: $completedAt,
         );
 
         // Act
@@ -94,5 +99,6 @@ class ImportCompletedTest extends TestCase
 
         // Assert
         $this->assertInstanceOf(\DateTimeImmutable::class, $occurredAt);
+        $this->assertSame($completedAt, $occurredAt);
     }
 }

@@ -12,8 +12,13 @@ final readonly class DebtorRecord
 {
     public function __construct(
         public Cuit $identificationNumber,
-        public Situation $situation,
-        public Amount $loansAmount,
+        public Situation $maxSituation,
+        public Amount $totalLoans,
+        /**
+         * Entity code used for aggregation during transformation.
+         * Not part of the domain spec but needed by BcraDataTransformer
+         * to associate this debtor record with its originating entity.
+         */
         public string $entityCode,
     ) {}
 }

@@ -19,12 +19,12 @@ class EntityRecordTest extends TestCase
         // Act
         $record = new EntityRecord(
             entityCode: $entityCode,
-            loansAmount: $amount,
+            totalLoans: $amount,
         );
 
         // Assert
         $this->assertSame('00001', $record->entityCode);
-        $this->assertSame(1500.5, $record->loansAmount->toFloat());
+        $this->assertSame(1500.5, $record->totalLoans->toFloat());
     }
 
     public function test_properties_are_readonly(): void
@@ -32,11 +32,11 @@ class EntityRecordTest extends TestCase
         // Arrange
         $record = new EntityRecord(
             entityCode: '00001',
-            loansAmount: new Amount(1500.5),
+            totalLoans: new Amount(1500.5),
         );
 
         // Act & Assert - readonly properties cannot be modified
         $this->assertSame('00001', $record->entityCode);
-        $this->assertInstanceOf(Amount::class, $record->loansAmount);
+        $this->assertInstanceOf(Amount::class, $record->totalLoans);
     }
 }

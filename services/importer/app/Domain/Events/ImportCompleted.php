@@ -7,27 +7,26 @@ namespace App\Domain\Events;
 final readonly class ImportCompleted implements DomainEvent
 {
     public function __construct(
-        public string $importId,
-        public int $totalRecords,
-        public int $validRecords,
-        public int $invalidRecords,
+        public string $filename,
+        public int $totalDebtors,
+        public int $totalEntities,
         public int $durationMs,
+        public \DateTimeImmutable $completedAt,
     ) {}
 
     public function toArray(): array
     {
         return [
-            'importId' => $this->importId,
-            'totalRecords' => $this->totalRecords,
-            'validRecords' => $this->validRecords,
-            'invalidRecords' => $this->invalidRecords,
+            'filename' => $this->filename,
+            'totalDebtors' => $this->totalDebtors,
+            'totalEntities' => $this->totalEntities,
             'durationMs' => $this->durationMs,
-            'occurredAt' => $this->occurredAt()->format('Y-m-d\TH:i:s\Z'),
+            'completedAt' => $this->completedAt->format('Y-m-d\TH:i:s\Z'),
         ];
     }
 
     public function occurredAt(): \DateTimeImmutable
     {
-        return new \DateTimeImmutable();
+        return $this->completedAt;
     }
 }

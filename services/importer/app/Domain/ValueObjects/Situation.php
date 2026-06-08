@@ -37,4 +37,12 @@ enum Situation: string
     {
         return $this->severity() > $other->severity();
     }
+
+    /**
+     * Return the worst possible situation (highest severity).
+     */
+    public static function worst(): self
+    {
+        return self::Unrecoverable;
+    }
 }

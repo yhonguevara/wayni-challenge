@@ -63,8 +63,8 @@ class BcraDataTransformerTest extends TestCase
         $this->assertCount(1, $result['debtors']);
         $debtor = $result['debtors']->first();
         $this->assertSame('20345123458', $debtor->identificationNumber->value());
-        $this->assertSame(Situation::Unrecoverable, $debtor->situation); // '05' is worst
-        $this->assertSame(6000.0, $debtor->loansAmount->toFloat()); // 1000+2000+3000
+        $this->assertSame(Situation::Unrecoverable, $debtor->maxSituation); // '05' is worst
+        $this->assertSame(6000.0, $debtor->totalLoans->toFloat()); // 1000+2000+3000
     }
 
     public function test_transform_max_situation_uses_severity_ordering(): void
@@ -83,7 +83,7 @@ class BcraDataTransformerTest extends TestCase
 
         // Assert — '23' (SpecialTreatment, severity 3) is worst
         $debtor = $result['debtors']->first();
-        $this->assertSame(Situation::SpecialTreatment, $debtor->situation);
+        $this->assertSame(Situation::SpecialTreatment, $debtor->maxSituation);
     }
 
     public function test_transform_groups_entities_by_entity_code(): void
@@ -104,10 +104,10 @@ class BcraDataTransformerTest extends TestCase
         $this->assertCount(2, $result['entities']);
 
         $entity1 = $result['entities']->firstWhere('entityCode', '00001');
-        $this->assertSame(3000.0, $entity1->loansAmount->toFloat()); // 1000+2000
+        $this->assertSame(3000.0, $entity1->totalLoans->toFloat()); // 1000+2000
 
         $entity2 = $result['entities']->firstWhere('entityCode', '00002');
-        $this->assertSame(500.0, $entity2->loansAmount->toFloat());
+        $this->assertSame(500.0, $entity2->totalLoans->toFloat());
     }
 
     public function test_transform_sums_loans_per_debtor(): void
@@ -126,7 +126,7 @@ class BcraDataTransformerTest extends TestCase
 
         // Assert
         $debtor = $result['debtors']->first();
-        $this->assertEqualsWithDelta(601.0, $debtor->loansAmount->toFloat(), 0.01);
+        $this->assertEqualsWithDelta(601.0, $debtor->totalLoans->toFloat(), 0.01);
     }
 
     public function test_transform_sums_loans_per_entity(): void
@@ -145,7 +145,7 @@ class BcraDataTransformerTest extends TestCase
 
         // Assert
         $entity = $result['entities']->first();
-        $this->assertSame(600.0, $entity->loansAmount->toFloat());
+        $this->assertSame(600.0, $entity->totalLoans->toFloat());
     }
 
     public function test_transform_independent_debtor_and_entity_grouping(): void
@@ -168,12 +168,12 @@ class BcraDataTransformerTest extends TestCase
 
         // Debtor 1: MAX situation = '03', SUM loans = 300
         $debtor1 = $result['debtors']->firstWhere(fn($d) => $d->identificationNumber->value() === '20345123458');
-        $this->assertSame(Situation::MediumRisk, $debtor1->situation);
-        $this->assertSame(300.0, $debtor1->loansAmount->toFloat());
+        $this->assertSame(Situation::MediumRisk, $debtor1->maxSituation);
+        $this->assertSame(300.0, $debtor1->totalLoans->toFloat());
 
         // Entity 1: SUM loans = 600 (100 + 500)
         $entity1 = $result['entities']->firstWhere('entityCode', '00001');
-        $this->assertSame(600.0, $entity1->loansAmount->toFloat());
+        $this->assertSame(600.0, $entity1->totalLoans->toFloat());
     }
 
     public function test_transform_empty_collection(): void
@@ -215,6 +215,6 @@ class BcraDataTransformerTest extends TestCase
 
         // Worst situation across all is '05' (Unrecoverable)
         $worstDebtor = $result['debtors']->firstWhere(fn($d) => $d->identificationNumber->value() === '20345123003');
-        $this->assertSame(Situation::Unrecoverable, $worstDebtor->situation);
+        $this->assertSame(Situation::Unrecoverable, $worstDebtor->maxSituation);
     }
 }
