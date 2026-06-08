@@ -1,5 +1,6 @@
 <?php
 
+use App\Infrastructure\Console\LocalstackSetupCommand;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 
