@@ -98,3 +98,16 @@ completed_changes:
       - aws-infrastructure
       - file-ingestion
       - file-upload-frontend
+  - name: phase-1-business-logic
+    completion_date: "2026-06-08"
+    verification_status: "CONDITIONAL_PASS → PASS after fixes"
+    summary: "Phase 1 — Business Logic Core: BCRA file parser, domain entities, value objects, data transformer, domain events, SQS integration, mono repo restructure"
+    tasks_completed: 37
+    specs_synced:
+      - monorepo-restructure
+      - coding-conventions
+      - business-logic-core
+      - domain-events
+      - database-schema
+      - development-environment
+      - project-scaffolding

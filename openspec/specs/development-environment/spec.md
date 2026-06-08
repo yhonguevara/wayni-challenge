@@ -8,7 +8,9 @@ Define the Docker Compose local development environment with PostgreSQL per-serv
 
 ### REQ-DEV-001: Docker Compose Service Definitions
 
-The system MUST define exactly 5 services in `docker-compose.yml`: `importer-service`, `query-service`, `importer-db`, `query-db`, and `localstack`.
+The system MUST define exactly 5 services in `docker-compose.yml`: `importer`, `query`, `importer-db`, `query-db`, and `localstack`.
+
+(Previously: Services were named `importer-service` and `query-service`)
 
 #### Scenario: All services start successfully
 
@@ -20,9 +22,9 @@ The system MUST define exactly 5 services in `docker-compose.yml`: `importer-ser
 #### Scenario: Service isolation
 
 - GIVEN both services are running
-- WHEN `importer-service` connects to a database
+- WHEN `importer` connects to a database
 - THEN it MUST connect only to `importer-db`
-- AND `query-service` MUST connect only to `query-db`
+- AND `query` MUST connect only to `query-db`
 
 ### REQ-DEV-002: PostgreSQL Database Configuration
 
@@ -66,14 +68,16 @@ The system MUST provide LocalStack 4.14 with S3 and SQS services enabled for loc
 
 ### REQ-DEV-004: Application Service Ports
 
-The `query-service` MUST be accessible on host port 8000 and `importer-service` on host port 8001.
+The `query` service MUST be accessible on host port 8000 and `importer` on host port 8001.
+
+(Previously: References used `query-service` and `importer-service`)
 
 #### Scenario: Port availability
 
 - GIVEN both application services are running
 - WHEN a client sends an HTTP request to `http://localhost:8000`
-- THEN the `query-service` responds
-- AND a request to `http://localhost:8001` reaches `importer-service`
+- THEN the `query` service responds
+- AND a request to `http://localhost:8001` reaches `importer`
 
 ### REQ-DEV-005: Named Volumes for Data Persistence
 
