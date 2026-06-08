@@ -24,11 +24,6 @@ Parameters:
     Type: String
     Description: ECR repository URI for container images
 
-Globals:
-  Function:
-    Timeout: 30
-    Runtime: php85
-
 Resources:
   # ========================
   # S3 - File Storage

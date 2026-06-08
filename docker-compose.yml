@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: wayni_importer
       POSTGRES_USER: wayni
-      POSTGRES_PASSWORD: secret
+      POSTGRES_PASSWORD: ${IMPORTER_DB_PASSWORD:-secret}
     volumes:
       - importer-db-data:/var/lib/postgresql/data
     ports:
@@ -20,7 +20,7 @@ services:
     environment:
       POSTGRES_DB: wayni_query
       POSTGRES_USER: wayni
-      POSTGRES_PASSWORD: secret
+      POSTGRES_PASSWORD: ${QUERY_DB_PASSWORD:-secret}
     volumes:
       - query-db-data:/var/lib/postgresql/data
     ports:
