@@ -7,13 +7,13 @@ namespace App\Application\Orchestrator;
 use App\Application\Notification\NotificationSender;
 use App\Application\Parser\BcraFileParser;
 use App\Application\Ports\EventPublisher;
+use App\Application\Ports\ImportLogRepository;
 use App\Application\Transformer\BcraDataTransformer;
 use App\Domain\Events\DebtorProcessed;
 use App\Domain\Events\DomainEvent;
 use App\Domain\Events\EntityProcessed;
 use App\Domain\Events\ImportCompleted;
 use App\Models\ImportLog;
-use Illuminate\Support\Str;
 
 /**
  * Coordinates the BCRA file processing pipeline.
@@ -26,6 +26,7 @@ final class ImportOrchestrator
     public function __construct(
         private readonly EventPublisher $eventPublisher,
         private readonly NotificationSender $notificationSender,
+        private readonly ImportLogRepository $importLogRepository,
     ) {}
 
     /**
@@ -38,18 +39,20 @@ final class ImportOrchestrator
         $startTime = microtime(true);
 
         // 1. Create/update ImportLog (status: processing, started_at: now)
-        $importLog = ImportLog::firstOrCreate(
-            ['id' => $importId],
-            [
+        $importLog = $this->importLogRepository->find($importId);
+
+        if ($importLog === null) {
+            $importLog = $this->importLogRepository->create([
+                'id' => $importId,
                 'filename' => basename($filePath),
                 'status' => 'processing',
                 'started_at' => now(),
-            ]
-        );
-        $importLog->update([
-            'status' => 'processing',
-            'started_at' => now(),
-        ]);
+            ]);
+        } else {
+            $this->importLogRepository->updateStatus($importId, 'processing', [
+                'started_at' => now(),
+            ]);
+        }
 
         try {
             // 2. Parse file
@@ -83,20 +86,18 @@ final class ImportOrchestrator
             $this->notificationSender->send($importCompleted);
 
             // 7. Update ImportLog (status: completed)
-            $importLog->update([
-                'status' => 'completed',
+            $this->importLogRepository->updateStatus($importId, 'completed', [
                 'finished_at' => now(),
-                'total_lines' => $debtors->count() + $entities->count(),
-                'total_debtors' => $debtors->count(),
-                'total_entities' => $entities->count(),
-                'duration_ms' => $durationMs,
+                'total_records' => $debtors->count() + $entities->count(),
+                'valid_records' => $debtors->count(),
+                'invalid_records' => 0,
+                'duration' => $durationMs,
             ]);
 
             return $importLog;
         } catch (\Throwable $e) {
             // Update ImportLog (status: failed, error_message)
-            $importLog->update([
-                'status' => 'failed',
+            $this->importLogRepository->updateStatus($importId, 'failed', [
                 'finished_at' => now(),
                 'error_message' => $e->getMessage(),
             ]);

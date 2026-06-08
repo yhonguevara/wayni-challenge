@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace App\Application\Jobs;
 
 use App\Application\Orchestrator\ImportOrchestrator;
-use App\Models\ImportLog;
+use App\Application\Ports\FileStorage;
+use App\Application\Ports\ImportLogRepository;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Queued job for processing BCRA files.
@@ -49,6 +49,8 @@ final class ProcessBcraFile implements ShouldQueue
     public function __construct(
         private readonly string $fileSource,
         private readonly string $importId,
+        private readonly FileStorage $fileStorage,
+        private readonly ImportLogRepository $importLogRepository,
     ) {}
 
     /**
@@ -87,8 +89,7 @@ final class ProcessBcraFile implements ShouldQueue
         ]);
 
         // Update ImportLog status to failed
-        ImportLog::where('id', $this->importId)->update([
-            'status' => 'failed',
+        $this->importLogRepository->updateStatus($this->importId, 'failed', [
             'finished_at' => now(),
             'error_message' => $exception->getMessage(),
         ]);
@@ -109,15 +110,7 @@ final class ProcessBcraFile implements ShouldQueue
 
         // S3 key — download to temp file
         $tempFile = tempnam(sys_get_temp_dir(), 'bcra_import_');
-        $contents = Storage::disk('s3')->get($this->fileSource);
-
-        if ($contents === null) {
-            throw new \RuntimeException(
-                sprintf('Failed to download file from S3: %s', $this->fileSource)
-            );
-        }
-
-        file_put_contents($tempFile, $contents);
+        $this->fileStorage->download($this->fileSource, $tempFile);
 
         return $tempFile;
     }

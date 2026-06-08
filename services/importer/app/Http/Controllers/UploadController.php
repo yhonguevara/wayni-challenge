@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Application\Jobs\ProcessBcraFile;
+use App\Application\Ports\FileStorage;
+use App\Application\Ports\ImportLogRepository;
 use App\Http\Requests\UploadFileRequest;
-use App\Models\ImportLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
 
@@ -19,6 +20,11 @@ use Illuminate\Support\Str;
  */
 final class UploadController extends Controller
 {
+    public function __construct(
+        private readonly ImportLogRepository $importLogRepository,
+        private readonly FileStorage $fileStorage,
+    ) {}
+
     /**
      * Handle file upload and dispatch processing job.
      */
@@ -39,7 +45,7 @@ final class UploadController extends Controller
         }
 
         // Create ImportLog (status: pending)
-        ImportLog::create([
+        $this->importLogRepository->create([
             'id' => $importId,
             'filename' => $request->hasUploadedFile()
                 ? $request->file('file')->getClientOriginalName()
@@ -48,10 +54,10 @@ final class UploadController extends Controller
         ]);
 
         // Dispatch ProcessBcraFile job
-        ProcessBcraFile::dispatch($fileSource, $importId);
+        ProcessBcraFile::dispatch($fileSource, $importId, $this->fileStorage, $this->importLogRepository);
 
         return response()->json([
-            'import_id' => $importId,
+            'import_log_id' => $importId,
             'status' => 'queued',
             'message' => 'File uploaded and processing started',
         ], 202);

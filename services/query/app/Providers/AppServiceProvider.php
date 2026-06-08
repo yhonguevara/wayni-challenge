@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use App\Application\Handlers\LogImportCompletionHandler;
-use App\Application\Handlers\UpsertDebtorHandler;
-use App\Application\Handlers\UpsertEntityHandler;
+use App\Application\Ports\DebtorEventHandler;
+use App\Application\Ports\EntityEventHandler;
+use App\Application\Ports\ImportCompletedHandler;
+use App\Infrastructure\Handlers\LogImportCompletionHandler;
+use App\Infrastructure\Handlers\UpsertDebtorHandler;
+use App\Infrastructure\Handlers\UpsertEntityHandler;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
 
@@ -17,7 +20,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(DebtorEventHandler::class, UpsertDebtorHandler::class);
+        $this->app->bind(EntityEventHandler::class, UpsertEntityHandler::class);
+        $this->app->bind(ImportCompletedHandler::class, LogImportCompletionHandler::class);
     }
 
     /**

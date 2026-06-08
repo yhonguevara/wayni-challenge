@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use App\Application\Notification\NotificationFactory;
 use App\Application\Notification\NotificationSender;
 use App\Application\Orchestrator\ImportOrchestrator;
 use App\Application\Ports\EventPublisher;
+use App\Application\Ports\FileStorage;
+use App\Application\Ports\ImportLogRepository;
 use App\Infrastructure\Console\LocalstackSetupCommand;
 use App\Infrastructure\Console\ProcessBcraFileCommand;
 use App\Infrastructure\Messaging\SqsEventPublisher;
+use App\Infrastructure\Notification\NotificationFactory;
+use App\Infrastructure\Persistence\EloquentImportLogRepository;
+use App\Infrastructure\Storage\S3FileStorage;
 use Aws\Sqs\SqsClient;
 use Illuminate\Support\ServiceProvider;
 
@@ -24,6 +28,8 @@ class AppServiceProvider extends ServiceProvider
         $this->registerEventPublisher();
         $this->registerNotificationSender();
         $this->registerImportOrchestrator();
+        $this->registerImportLogRepository();
+        $this->registerFileStorage();
     }
 
     /**
@@ -80,7 +86,24 @@ class AppServiceProvider extends ServiceProvider
             return new ImportOrchestrator(
                 eventPublisher: $this->app->make(EventPublisher::class),
                 notificationSender: $this->app->make(NotificationSender::class),
+                importLogRepository: $this->app->make(ImportLogRepository::class),
             );
+        });
+    }
+
+    private function registerImportLogRepository(): void
+    {
+        $this->app->bind(ImportLogRepository::class, function () {
+            return new EloquentImportLogRepository(
+                model: new \App\Models\ImportLog(),
+            );
+        });
+    }
+
+    private function registerFileStorage(): void
+    {
+        $this->app->bind(FileStorage::class, function () {
+            return new S3FileStorage();
         });
     }
 }

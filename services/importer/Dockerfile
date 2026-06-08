@@ -3,7 +3,7 @@ FROM composer:2 AS composer
 
 WORKDIR /app
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
+RUN composer install --no-scripts --no-autoloader --prefer-dist
 
 # Stage 2: Application image
 FROM php:8.5-cli-alpine
