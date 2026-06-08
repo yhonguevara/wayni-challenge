@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'default' => env('QUEUE_CONNECTION', 'database'),
+    'default' => env('QUEUE_CONNECTION', 'sqs'),
 
     /*
     |--------------------------------------------------------------------------
@@ -55,12 +55,13 @@ return [
 
         'sqs' => [
             'driver' => 'sqs',
-            'key' => env('AWS_ACCESS_KEY_ID'),
-            'secret' => env('AWS_SECRET_ACCESS_KEY'),
-            'prefix' => env('SQS_PREFIX', 'https://sqs.us-east-1.amazonaws.com/your-account-id'),
+            'key' => env('AWS_ACCESS_KEY_ID', 'test'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY', 'test'),
+            'prefix' => env('SQS_PREFIX', 'http://localhost:4566/000000000000'),
             'queue' => env('SQS_QUEUE', 'default'),
-            'suffix' => env('SQS_SUFFIX'),
+            'suffix' => env('SQS_SUFFIX', ''),
             'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
+            'endpoint' => env('AWS_ENDPOINT_URL', 'http://localhost:4566'),
             'after_commit' => false,
         ],
 
