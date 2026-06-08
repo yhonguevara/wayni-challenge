@@ -26,28 +26,28 @@ Chain strategy: pending
 
 ## Phase 1: Foundation — Interfaces & Config
 
-- [ ] 1.1 Create `NotificationSender` interface in `importer/app/Application/Notification/`
+- [x] 1.1 Create `NotificationSender` interface in `importer/app/Application/Notification/`
 - [x] 1.2 Configure SQS connection in `query/config/queue.php` with LocalStack endpoint + 3 queues
 - [x] 1.3 Create `DebtorProcessedEvent`, `EntityProcessedEvent`, `ImportCompletedEvent` DTOs in `query/app/Application/DTOs/`
 
 ## Phase 2: Core — Notification Implementations (Importer)
 
-- [ ] 2.1 Create `LogNotification` — `Log::info` with structured JSON output
-- [ ] 2.2 Create `WebhookNotification` — HTTP POST via `Http` facade, throw on missing URL
-- [ ] 2.3 Create `SqsNotification` — publish to notifications queue
-- [ ] 2.4 Create `NotificationFactory` — static `fromDriver()` resolving `log|webhook|sqs`
+- [x] 2.1 Create `LogNotification` — `Log::info` with structured JSON output
+- [x] 2.2 Create `WebhookNotification` — HTTP POST via `Http` facade, throw on missing URL
+- [x] 2.3 Create `SqsNotification` — publish to notifications queue
+- [x] 2.4 Create `NotificationFactory` — static `fromDriver()` resolving `log|webhook|sqs`
 
 ## Phase 3: Core — ImportOrchestrator & Job (Importer)
 
-- [ ] 3.1 Create `ImportOrchestrator` in `Application/Orchestrator/` — parse → transform → publishBatch → publishImportCompleted → notify → update `ImportLog` with stats
-- [ ] 3.2 Create `ProcessBcraFile` Job in `Application/Jobs/` — receives `filePath`+`importLogId`, delegates to orchestrator, 3 retries, sets failed status on exhaustion
-- [ ] 3.3 Bind `EventPublisher` (SqsEventPublisher) + `NotificationSender` (via factory) in `AppServiceProvider`
+- [x] 3.1 Create `ImportOrchestrator` in `Application/Orchestrator/` — parse → transform → publishBatch → publishImportCompleted → notify → update `ImportLog` with stats
+- [x] 3.2 Create `ProcessBcraFile` Job in `Application/Jobs/` — receives `filePath`+`importLogId`, delegates to orchestrator, 3 retries, sets failed status on exhaustion
+- [x] 3.3 Bind `EventPublisher` (SqsEventPublisher) + `NotificationSender` (via factory) in `AppServiceProvider`
 
 ## Phase 4: Integration — Upload Endpoint (Importer)
 
-- [ ] 4.1 Create `UploadFileRequest` — validate `.txt`, `text/plain`, ≤6GB
-- [ ] 4.2 Create `UploadController@store` — persist file, create `ImportLog(pending)`, dispatch `ProcessBcraFile`, return 202
-- [ ] 4.3 Replace stub routes in `routes/api.php` with `POST /upload`
+- [x] 4.1 Create `UploadFileRequest` — validate `.txt`, `text/plain`, ≤6GB
+- [x] 4.2 Create `UploadController@store` — persist file, create `ImportLog(pending)`, dispatch `ProcessBcraFile`, return 202
+- [x] 4.3 Replace stub routes in `routes/api.php` with `POST /upload`
 
 ## Phase 5: Core — Event Handlers (Query)
 
