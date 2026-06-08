@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Application\Jobs;
 
 use App\Application\Jobs\ProcessBcraFile;
-use App\Application\Ports\FileStorage;
 use App\Application\Ports\ImportLogRepository;
-use App\Models\ImportLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -19,9 +17,7 @@ class ProcessBcraFileTest extends TestCase
     public function test_job_has_correct_retry_configuration(): void
     {
         // Arrange & Act
-        $fileStorage = $this->createMock(FileStorage::class);
-        $importLogRepository = $this->createMock(ImportLogRepository::class);
-        $job = new ProcessBcraFile('/tmp/test.txt', (string) Str::uuid(), $fileStorage, $importLogRepository);
+        $job = new ProcessBcraFile('/tmp/test.txt', (string) Str::uuid());
 
         // Assert
         $this->assertSame(3, $job->tries);
@@ -31,9 +27,7 @@ class ProcessBcraFileTest extends TestCase
     public function test_job_implements_should_queue(): void
     {
         // Arrange & Act
-        $fileStorage = $this->createMock(FileStorage::class);
-        $importLogRepository = $this->createMock(ImportLogRepository::class);
-        $job = new ProcessBcraFile('/tmp/test.txt', (string) Str::uuid(), $fileStorage, $importLogRepository);
+        $job = new ProcessBcraFile('/tmp/test.txt', (string) Str::uuid());
 
         // Assert
         $this->assertInstanceOf(\Illuminate\Contracts\Queue\ShouldQueue::class, $job);
@@ -43,14 +37,16 @@ class ProcessBcraFileTest extends TestCase
     {
         // Arrange
         $importId = (string) Str::uuid();
-        $fileStorage = $this->createMock(FileStorage::class);
-        $importLogRepository = $this->createMock(ImportLogRepository::class);
 
+        $importLogRepository = $this->createMock(ImportLogRepository::class);
         $importLogRepository->expects($this->once())
             ->method('updateStatus')
             ->with($importId, 'failed', $this->arrayHasKey('error_message'));
 
-        $job = new ProcessBcraFile('/tmp/nonexistent.txt', $importId, $fileStorage, $importLogRepository);
+        // Bind mock to container so failed() can resolve it
+        $this->app->instance(ImportLogRepository::class, $importLogRepository);
+
+        $job = new ProcessBcraFile('/tmp/nonexistent.txt', $importId);
         $exception = new \RuntimeException('File not found');
 
         // Act

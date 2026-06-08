@@ -49,20 +49,18 @@ final class ProcessBcraFile implements ShouldQueue
     public function __construct(
         private readonly string $fileSource,
         private readonly string $importId,
-        private readonly FileStorage $fileStorage,
-        private readonly ImportLogRepository $importLogRepository,
     ) {}
 
     /**
      * Execute the job.
      */
-    public function handle(): void
+    public function handle(FileStorage $fileStorage): void
     {
         $tempFile = null;
 
         try {
             // Determine source type and get local file path
-            $filePath = $this->resolveFilePath($tempFile);
+            $filePath = $this->resolveFilePath($tempFile, $fileStorage);
 
             // Resolve orchestrator from container
             $orchestrator = app(ImportOrchestrator::class);
@@ -89,7 +87,8 @@ final class ProcessBcraFile implements ShouldQueue
         ]);
 
         // Update ImportLog status to failed
-        $this->importLogRepository->updateStatus($this->importId, 'failed', [
+        $importLogRepository = app(ImportLogRepository::class);
+        $importLogRepository->updateStatus($this->importId, 'failed', [
             'finished_at' => now(),
             'error_message' => $exception->getMessage(),
         ]);
@@ -101,7 +100,7 @@ final class ProcessBcraFile implements ShouldQueue
      * Detection logic: if $fileSource starts with '/' or file_exists(), treat as local;
      * otherwise treat as S3 key.
      */
-    private function resolveFilePath(?string &$tempFile): string
+    private function resolveFilePath(?string &$tempFile, FileStorage $fileStorage): string
     {
         // Local filesystem path
         if (str_starts_with($this->fileSource, '/') || file_exists($this->fileSource)) {
@@ -110,7 +109,7 @@ final class ProcessBcraFile implements ShouldQueue
 
         // S3 key — download to temp file
         $tempFile = tempnam(sys_get_temp_dir(), 'bcra_import_');
-        $this->fileStorage->download($this->fileSource, $tempFile);
+        $fileStorage->download($this->fileSource, $tempFile);
 
         return $tempFile;
     }

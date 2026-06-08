@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Application\Jobs\ProcessBcraFile;
-use App\Application\Ports\FileStorage;
 use App\Application\Ports\ImportLogRepository;
 use App\Http\Requests\UploadFileRequest;
 use Illuminate\Http\JsonResponse;
@@ -22,7 +21,6 @@ final class UploadController extends Controller
 {
     public function __construct(
         private readonly ImportLogRepository $importLogRepository,
-        private readonly FileStorage $fileStorage,
     ) {}
 
     /**
@@ -54,7 +52,7 @@ final class UploadController extends Controller
         ]);
 
         // Dispatch ProcessBcraFile job
-        ProcessBcraFile::dispatch($fileSource, $importId, $this->fileStorage, $this->importLogRepository);
+        ProcessBcraFile::dispatch($fileSource, $importId);
 
         return response()->json([
             'import_log_id' => $importId,
