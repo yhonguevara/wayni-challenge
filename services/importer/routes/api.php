@@ -1,7 +1,11 @@
 <?php
 
+use App\Http\Controllers\UploadController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+
+// File upload endpoint
+Route::post('/upload', [UploadController::class, 'store'])->name('api.upload');
 
 // Pre-signed URL endpoint (future implementation)
 Route::post('/presign', function (Request $request) {

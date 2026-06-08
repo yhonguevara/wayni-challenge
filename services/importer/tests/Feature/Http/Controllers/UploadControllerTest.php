@@ -24,7 +24,7 @@ class UploadControllerTest extends TestCase
         $file = UploadedFile::fake()->createWithContent('deudores.txt', 'test content');
 
         // Act
-        $response = $this->postJson('/upload', ['file' => $file]);
+        $response = $this->postJson('/api/upload', ['file' => $file]);
 
         // Assert
         $response->assertStatus(202);
@@ -38,7 +38,7 @@ class UploadControllerTest extends TestCase
         Queue::fake();
 
         // Act
-        $response = $this->postJson('/upload', ['s3_key' => 'uploads/deudores.txt']);
+        $response = $this->postJson('/api/upload', ['s3_key' => 'uploads/deudores.txt']);
 
         // Assert
         $response->assertStatus(202);
@@ -53,7 +53,7 @@ class UploadControllerTest extends TestCase
         $file = UploadedFile::fake()->createWithContent('deudores.txt', 'test content');
 
         // Act
-        $response = $this->postJson('/upload', [
+        $response = $this->postJson('/api/upload', [
             'file' => $file,
             's3_key' => 'uploads/deudores.txt',
         ]);
@@ -65,7 +65,7 @@ class UploadControllerTest extends TestCase
     public function test_post_upload_with_neither_file_nor_s3_key_returns_422(): void
     {
         // Act
-        $response = $this->postJson('/upload', []);
+        $response = $this->postJson('/api/upload', []);
 
         // Assert
         $response->assertStatus(422);
@@ -77,7 +77,7 @@ class UploadControllerTest extends TestCase
         $file = UploadedFile::fake()->create('document.pdf', 100);
 
         // Act
-        $response = $this->postJson('/upload', ['file' => $file]);
+        $response = $this->postJson('/api/upload', ['file' => $file]);
 
         // Assert
         $response->assertStatus(422);
@@ -91,7 +91,7 @@ class UploadControllerTest extends TestCase
         $file = UploadedFile::fake()->createWithContent('deudores.txt', 'test content');
 
         // Act
-        $response = $this->postJson('/upload', ['file' => $file]);
+        $response = $this->postJson('/api/upload', ['file' => $file]);
 
         // Assert
         $importId = $response->json('import_log_id');
@@ -109,7 +109,7 @@ class UploadControllerTest extends TestCase
         $file = UploadedFile::fake()->createWithContent('deudores.txt', 'test content');
 
         // Act
-        $this->postJson('/upload', ['file' => $file]);
+        $this->postJson('/api/upload', ['file' => $file]);
 
         // Assert
         Queue::assertPushed(ProcessBcraFile::class);
