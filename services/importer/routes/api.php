@@ -1,8 +1,13 @@
 <?php
 
+use App\Http\Controllers\UploadController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+// File upload endpoint
+Route::post('/upload', [UploadController::class, 'store'])->name('api.upload');
+
+// Pre-signed URL endpoint (future implementation)
 Route::post('/presign', function (Request $request) {
     // Stub: Returns pre-signed URL for S3 upload
     // Implementation will use S3::createPresignedPost() or S3::temporaryUrl()
