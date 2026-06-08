@@ -64,9 +64,9 @@
 | `importer-db` | `postgres:18-alpine` | 5432 |
 | `query-db` | `postgres:18-alpine` | 5433 |
 | `localstack` | `localstack/localstack:4.14` | 4566 |
-| `importer` | `./importer-service` (custom) | 8001 |
-| `query-service` | `./query-service` (custom) | 8000 |
-| `query-worker` | `./query-service` (custom) | N/A (queue worker) |
+| `importer` | `./services/importer` (custom) | 8001 |
+| `query` | `./services/query` (custom) | 8000 |
+| `query-worker` | `./services/query` (custom) | N/A (queue worker) |
 
 ---
 

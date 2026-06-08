@@ -51,7 +51,7 @@ docker-compose up -d
 
 # Ejecutar migraciones
 docker-compose exec importer php artisan migrate
-docker-compose exec query-api php artisan migrate
+docker-compose exec query php artisan migrate
 
 # Setup LocalStack (crear bucket S3 y colas SQS)
 docker-compose exec importer php artisan localstack:setup
@@ -79,7 +79,7 @@ docker-compose exec importer php artisan bcra:process /path/to/deudores.txt
 docker-compose exec importer php artisan test
 
 # Query API tests
-docker-compose exec query-api php artisan test
+docker-compose exec query php artisan test
 ```
 
 ### View Logs

@@ -6,96 +6,97 @@
 /
 ├── docker-compose.yml
 ├── .env.example
-├── importer-service/
-│   ├── Dockerfile
-│   ├── .env.example
-│   └── (Laravel app with Clean Architecture)
-│       ├── app/
-│       │   ├── Console/Commands/
-│       │   │   └── ProcessBcraFileCommand.php
-│       │   ├── Http/Controllers/
-│       │   │   └── UploadController.php
-│       │   ├── Jobs/
-│       │   │   ├── ProcessBcraFile.php
-│       │   │   ├── PublishDebtorEvents.php
-│       │   │   └── PublishEntityEvents.php
-│       │   ├── Domain/
-│       │   │   ├── Import/
-│       │   │   │   └── ImportLog.php (Eloquent model)
-│       │   │   ├── Debtor/
-│       │   │   │   ├── Debtor.php (Entity)
-│       │   │   │   ├── DebtorCollection.php (Value Object)
-│       │   │   │   └── Events/DebtorProcessed.php (Domain Event)
-│       │   │   └── Entity/
-│       │   │       ├── Entity.php (Entity)
-│       │   │       └── Events/EntityProcessed.php (Domain Event)
-│       │   ├── Application/
-│       │   │   ├── DTOs/
-│       │   │   │   ├── BcraRecordDTO.php
-│       │   │   │   ├── DebtorDTO.php
-│       │   │   │   └── EntityDTO.php
-│       │   │   ├── Services/
-│       │   │   │   ├── BcraFileParser.php
-│       │   │   │   ├── BcraDataTransformer.php
-│       │   │   │   └── ImportOrchestrator.php
-│       │   │   └── Events/
-│       │   │       └── ImportCompleted.php
-│       │   └── Infrastructure/
-│       │       ├── Persistence/
-│       │       │   └── EloquentImportLogRepository.php
-│       │       ├── Messaging/
-│       │       │   ├── SqsEventPublisher.php
-│       │       │   └── S3FileUploader.php
-│       │       └── Notification/
-│       │           ├── LogNotification.php
-│       │           ├── WebhookNotification.php
-│       │           └── SqsNotification.php
-│       └── tests/
-│           ├── Unit/
-│           │   ├── BcraFileParserTest.php
-│           │   └── BcraDataTransformerTest.php
-│           └── Feature/
-│               └── UploadControllerTest.php
-├── query-service/
-│   ├── Dockerfile
-│   ├── .env.example
-│   └── (Laravel app with Clean Architecture)
-│       ├── app/
-│       │   ├── Http/
-│       │   │   ├── Controllers/
-│       │   │   │   ├── DebtorController.php
-│       │   │   │   └── EntityController.php
-│       │   │   ├── Resources/
-│       │   │   │   ├── DebtorResource.php
-│       │   │   │   └── EntityResource.php
-│       │   │   └── Requests/
-│       │   │       ├── TopDebtorsRequest.php
-│       │   │       └── ListDebtorsRequest.php
-│       │   ├── Domain/
-│       │   │   ├── Debtor/
-│       │   │   │   └── Debtor.php (Eloquent model)
-│       │   │   └── Entity/
-│       │   │       └── Entity.php (Eloquent model)
-│       │   ├── Application/
-│       │   │   ├── Handlers/
-│       │   │   │   ├── UpsertDebtorHandler.php
-│       │   │   │   ├── UpsertEntityHandler.php
-│       │   │   │   └── LogImportCompletionHandler.php
-│       │   │   └── Queries/
-│       │   │       ├── GetDebtorByCuit.php
-│       │   │       ├── GetEntityByCode.php
-│       │   │       ├── GetTopDebtors.php
-│       │   │       └── ListDebtors.php
-│       │   └── Infrastructure/
-│       │       └── Messaging/
-│       │           └── SqsEventConsumer.php (Laravel Queue Worker)
-│       └── tests/
-│           ├── Unit/
-│           │   ├── UpsertDebtorHandlerTest.php
-│           │   └── GetTopDebtorsTest.php
-│           └── Feature/
-│               ├── DebtorControllerTest.php
-│               └── EntityControllerTest.php
+├── services/
+│   ├── importer/
+│   │   ├── Dockerfile
+│   │   ├── .env.example
+│   │   └── (Laravel app with Clean Architecture)
+│   │       ├── app/
+│   │       │   ├── Console/Commands/
+│   │       │   │   └── ProcessBcraFileCommand.php
+│   │       │   ├── Http/Controllers/
+│   │       │   │   └── UploadController.php
+│   │       │   ├── Jobs/
+│   │       │   │   ├── ProcessBcraFile.php
+│   │       │   │   ├── PublishDebtorEvents.php
+│   │       │   │   └── PublishEntityEvents.php
+│   │       │   ├── Domain/
+│   │       │   │   ├── Import/
+│   │       │   │   │   └── ImportLog.php (Eloquent model)
+│   │       │   │   ├── Debtor/
+│   │       │   │   │   ├── Debtor.php (Entity)
+│   │       │   │   │   ├── DebtorCollection.php (Value Object)
+│   │       │   │   │   └── Events/DebtorProcessed.php (Domain Event)
+│   │       │   │   └── Entity/
+│   │       │   │       ├── Entity.php (Entity)
+│   │       │   │       └── Events/EntityProcessed.php (Domain Event)
+│   │       │   ├── Application/
+│   │       │   │   ├── DTOs/
+│   │       │   │   │   ├── BcraRecordDTO.php
+│   │       │   │   │   ├── DebtorDTO.php
+│   │       │   │   │   └── EntityDTO.php
+│   │       │   │   ├── Services/
+│   │       │   │   │   ├── BcraFileParser.php
+│   │       │   │   │   ├── BcraDataTransformer.php
+│   │       │   │   │   └── ImportOrchestrator.php
+│   │       │   │   └── Events/
+│   │       │   │       └── ImportCompleted.php
+│   │       │   └── Infrastructure/
+│   │       │       ├── Persistence/
+│   │       │       │   └── EloquentImportLogRepository.php
+│   │       │       ├── Messaging/
+│   │       │       │   ├── SqsEventPublisher.php
+│   │       │       │   └── S3FileUploader.php
+│   │       │       └── Notification/
+│   │       │           ├── LogNotification.php
+│   │       │           ├── WebhookNotification.php
+│   │       │           └── SqsNotification.php
+│   │       └── tests/
+│   │           ├── Unit/
+│   │           │   ├── BcraFileParserTest.php
+│   │           │   └── BcraDataTransformerTest.php
+│   │           └── Feature/
+│   │               └── UploadControllerTest.php
+│   └── query/
+│       ├── Dockerfile
+│       ├── .env.example
+│       └── (Laravel app with Clean Architecture)
+│           ├── app/
+│           │   ├── Http/
+│           │   │   ├── Controllers/
+│           │   │   │   ├── DebtorController.php
+│           │   │   │   └── EntityController.php
+│           │   │   ├── Resources/
+│           │   │   │   ├── DebtorResource.php
+│           │   │   │   └── EntityResource.php
+│           │   │   └── Requests/
+│           │   │       ├── TopDebtorsRequest.php
+│           │   │       └── ListDebtorsRequest.php
+│           │   ├── Domain/
+│           │   │   ├── Debtor/
+│           │   │   │   └── Debtor.php (Eloquent model)
+│           │   │   └── Entity/
+│           │   │       └── Entity.php (Eloquent model)
+│           │   ├── Application/
+│           │   │   ├── Handlers/
+│           │   │   │   ├── UpsertDebtorHandler.php
+│           │   │   │   ├── UpsertEntityHandler.php
+│           │   │   │   └── LogImportCompletionHandler.php
+│           │   │   └── Queries/
+│           │   │       ├── GetDebtorByCuit.php
+│           │   │       ├── GetEntityByCode.php
+│           │   │       ├── GetTopDebtors.php
+│           │   │       └── ListDebtors.php
+│           │   └── Infrastructure/
+│           │       └── Messaging/
+│           │           └── SqsEventConsumer.php (Laravel Queue Worker)
+│           └── tests/
+│               ├── Unit/
+│               │   ├── UpsertDebtorHandlerTest.php
+│               │   └── GetTopDebtorsTest.php
+│               └── Feature/
+│                   ├── DebtorControllerTest.php
+│                   └── EntityControllerTest.php
 ├── infrastructure/
 │   ├── template.yaml          # AWS SAM template
 │   └── samconfig.toml         # SAM deployment config
@@ -150,24 +151,24 @@ services:
     volumes:
       - localstack_data:/var/lib/localstack
 
-  importer-service:
-    build: ./importer-service
+  importer:
+    build: ./services/importer
     ports:
       - "8001:8000"
     env_file:
-      - ./importer-service/.env
+      - ./services/importer/.env
     depends_on:
       importer-db:
         condition: service_healthy
       localstack:
         condition: service_started
 
-  query-service:
-    build: ./query-service
+  query:
+    build: ./services/query
     ports:
       - "8000:8000"
     env_file:
-      - ./query-service/.env
+      - ./services/query/.env
     depends_on:
       query-db:
         condition: service_healthy
@@ -175,10 +176,10 @@ services:
         condition: service_started
 
   query-worker:
-    build: ./query-service
+    build: ./services/query
     command: php artisan queue:work sqs --sleep=3 --tries=3 --max-time=3600
     env_file:
-      - ./query-service/.env
+      - ./services/query/.env
     depends_on:
       query-db:
         condition: service_healthy
@@ -246,13 +247,14 @@ Config is in `infrastructure/samconfig.toml`.
 
 ```
 wayni-challenge/
-├── importer-service/     # Write side (file processing)
-├── query-service/        # Read side (API queries)
-├── infrastructure/       # AWS SAM IaC
-├── docs/                 # Architecture & conventions
-├── openspec/             # SDD artifacts
-├── docker-compose.yml    # Local dev environment
-└── .env.example          # Root env vars
+├── services/
+│   ├── importer/          # Write side (file processing)
+│   └── query/             # Read side (API queries)
+├── infrastructure/        # AWS SAM IaC
+├── docs/                  # Architecture & conventions
+├── openspec/              # SDD artifacts
+├── docker-compose.yml     # Local dev environment
+└── .env.example           # Root env vars
 ```
 
 ---

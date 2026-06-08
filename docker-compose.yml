@@ -47,38 +47,38 @@ services:
       timeout: 5s
       retries: 5
 
-  importer-service:
+  importer:
     build:
-      context: ./importer-service
+      context: ./services/importer
       dockerfile: Dockerfile
     ports:
       - "8001:8000"
     env_file:
-      - ./importer-service/.env
+      - ./services/importer/.env
     depends_on:
       importer-db:
         condition: service_healthy
       localstack:
         condition: service_healthy
     volumes:
-      - ./importer-service:/app
+      - ./services/importer:/app
       - /app/vendor
 
-  query-service:
+  query:
     build:
-      context: ./query-service
+      context: ./services/query
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
     env_file:
-      - ./query-service/.env
+      - ./services/query/.env
     depends_on:
       query-db:
         condition: service_healthy
       localstack:
         condition: service_healthy
     volumes:
-      - ./query-service:/app
+      - ./services/query:/app
       - /app/vendor
 
 volumes:
