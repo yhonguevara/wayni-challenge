@@ -8,7 +8,7 @@ Parameters:
     Default: dev
     AllowedValues:
       - dev
-      - staging
+      - stg
       - prod
     Description: Deployment environment
 
