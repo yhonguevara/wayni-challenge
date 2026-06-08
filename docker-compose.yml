@@ -63,6 +63,13 @@ services:
     volumes:
       - ./services/importer:/app
       - /app/vendor
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/up"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
 
   query:
     build:
@@ -80,6 +87,30 @@ services:
     volumes:
       - ./services/query:/app
       - /app/vendor
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/up"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  query-worker:
+    build:
+      context: ./services/query
+      dockerfile: Dockerfile
+    command: ["php", "artisan", "queue:work", "sqs", "--sleep=3", "--tries=3", "--timeout=90"]
+    env_file:
+      - ./services/query/.env
+    depends_on:
+      query-db:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    volumes:
+      - ./services/query:/app
+      - /app/vendor
+    restart: unless-stopped
 
 volumes:
   importer-db-data:
