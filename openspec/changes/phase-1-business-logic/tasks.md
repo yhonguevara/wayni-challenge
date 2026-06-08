@@ -24,22 +24,22 @@ Chain strategy: pending
 
 ## Phase 0: Foundation & Infrastructure
 
-- [ ] **0.1** `git mv importer-service services/importer` and `query-service services/query` — preserve history
-- [ ] **0.2** Update `docker-compose.yml`: rename services (`importer-service`→`importer`, `query-service`→`query`), build contexts (`./services/*`), env_file paths, volume mounts
-- [ ] **0.3** Update `AGENTS.md` CLI references (`docker-compose exec importer`, `query`)
-- [ ] **0.4** Update `docs/architecture/services.md` and `infrastructure.md` directory trees
-- [ ] **0.5** Create `docs/conventions/coding-standards.md`: PSR-12, PHP 8.5 features, Clean Architecture layer rules, strict typing, import ordering, English-only naming
-- [ ] **0.6** Create `docs/conventions/testing.md`: PHPUnit structure (Unit/Feature/Fixtures), AAA pattern, data providers, coverage targets (80% Domain, 100% App critical)
-- [ ] **1.1** Create `services/importer/Dockerfile`: `php:8.5-cli-alpine`, postgresql/pcntl extensions, Composer
-- [ ] **1.2** Create `services/query/Dockerfile` (same base, query-specific config)
+- [x] **0.1** `git mv importer-service services/importer` and `query-service services/query` — preserve history
+- [x] **0.2** Update `docker-compose.yml`: rename services (`importer-service`→`importer`, `query-service`→`query`), build contexts (`./services/*`), env_file paths, volume mounts
+- [x] **0.3** Update `AGENTS.md` CLI references (`docker-compose exec importer`, `query`)
+- [x] **0.4** Update `docs/architecture/services.md` and `infrastructure.md` directory trees
+- [x] **0.5** Create `docs/conventions/coding-standards.md`: PSR-12, PHP 8.5 features, Clean Architecture layer rules, strict typing, import ordering, English-only naming
+- [x] **0.6** Create `docs/conventions/testing.md`: PHPUnit structure (Unit/Feature/Fixtures), AAA pattern, data providers, coverage targets (80% Domain, 100% App critical)
+- [x] **1.1** Create `services/importer/Dockerfile`: `php:8.5-cli-alpine`, postgresql/pcntl extensions, Composer
+- [x] **1.2** Create `services/query/Dockerfile` (same base, query-specific config)
 - [ ] **1.3** Add `aws/aws-sdk-php` to `services/importer/composer.json`
-- [ ] **1.4** Update `.env` files: PostgreSQL connection, SQS/S3 LocalStack endpoints for both services
-- [ ] **2.1** Create `import_logs` migration (importer DB): id, filename, status, total_lines, total_debtors, total_entities, duration_ms, error_message, started_at, finished_at, timestamps
-- [ ] **2.2** Create `debtors` migration (query DB): id, identification_number (UNIQUE), max_situation, total_loan_amount, timestamps; indexes on max_situation, total_loan_amount DESC
-- [ ] **2.3** Create `entities` migration (query DB): id, entity_code (UNIQUE), total_loan_amount, timestamps; index on total_loan_amount DESC
-- [ ] **2.4** Create `app/Models/ImportLog` Eloquent model: table `import_logs`, casts (datetime, integer)
-- [ ] **2.5** Create `app/Models/Debtor` Eloquent model: table `debtors`, cast total_loan_amount to decimal:2
-- [ ] **2.6** Create `app/Models/Entity` Eloquent model: table `entities`, cast total_loan_amount to decimal:2
+- [x] **1.4** Update `.env` files: PostgreSQL connection, SQS/S3 LocalStack endpoints for both services
+- [x] **2.1** Create `import_logs` migration (importer DB): id, filename, status, total_lines, total_debtors, total_entities, duration_ms, error_message, started_at, finished_at, timestamps
+- [x] **2.2** Create `debtors` migration (query DB): id, identification_number (UNIQUE), max_situation, total_loan_amount, timestamps; indexes on max_situation, total_loan_amount DESC
+- [x] **2.3** Create `entities` migration (query DB): id, entity_code (UNIQUE), total_loan_amount, timestamps; index on total_loan_amount DESC
+- [x] **2.4** Create `app/Models/ImportLog` Eloquent model: table `import_logs`, casts (datetime, integer)
+- [x] **2.5** Create `app/Models/Debtor` Eloquent model: table `debtors`, cast total_loan_amount to decimal:2
+- [x] **2.6** Create `app/Models/Entity` Eloquent model: table `entities`, cast total_loan_amount to decimal:2
 
 ## Phase 1: Domain Layer (No Framework Dependencies)
 
