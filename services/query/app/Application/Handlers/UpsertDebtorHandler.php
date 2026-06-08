@@ -20,11 +20,14 @@ final class UpsertDebtorHandler implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public string $queue = 'debtor-events';
-
     public int $tries = 3;
 
     public int $backoff = 10;
+
+    public function __construct()
+    {
+        $this->queue = 'debtor-events';
+    }
 
     public function handle(DebtorProcessedEvent $event): void
     {

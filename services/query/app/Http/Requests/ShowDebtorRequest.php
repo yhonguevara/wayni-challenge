@@ -19,4 +19,11 @@ final class ShowDebtorRequest extends FormRequest
             'cuit' => ['required', 'string', 'size:11', 'regex:/^\d{11}$/'],
         ];
     }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->route('cuit')) {
+            $this->merge(['cuit' => $this->route('cuit')]);
+        }
+    }
 }

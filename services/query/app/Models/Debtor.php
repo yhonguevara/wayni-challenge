@@ -10,6 +10,15 @@ class Debtor extends Model
 {
     protected $table = 'debtors';
 
+    /**
+     * @var list<string>
+     */
+    protected $fillable = [
+        'identification_number',
+        'max_situation',
+        'total_loan_amount',
+    ];
+
     protected function casts(): array
     {
         return [

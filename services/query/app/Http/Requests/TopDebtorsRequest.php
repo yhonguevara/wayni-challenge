@@ -19,4 +19,11 @@ final class TopDebtorsRequest extends FormRequest
             'n' => ['required', 'integer', 'min:1', 'max:1000'],
         ];
     }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->route('n')) {
+            $this->merge(['n' => $this->route('n')]);
+        }
+    }
 }

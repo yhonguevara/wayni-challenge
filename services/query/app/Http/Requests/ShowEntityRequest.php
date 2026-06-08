@@ -19,4 +19,11 @@ final class ShowEntityRequest extends FormRequest
             'code' => ['required', 'string', 'size:5', 'regex:/^\d{5}$/'],
         ];
     }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->route('code')) {
+            $this->merge(['code' => $this->route('code')]);
+        }
+    }
 }

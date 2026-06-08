@@ -20,11 +20,14 @@ final class UpsertEntityHandler implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public string $queue = 'entity-events';
-
     public int $tries = 3;
 
     public int $backoff = 10;
+
+    public function __construct()
+    {
+        $this->queue = 'entity-events';
+    }
 
     public function handle(EntityProcessedEvent $event): void
     {

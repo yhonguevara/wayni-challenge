@@ -16,7 +16,7 @@ return new class extends Migration
             $table->decimal('total_loan_amount', 18, 2)->default(0);
             $table->timestampsTz();
 
-            $table->index(['total_loan_amount' => 'desc'], 'idx_entities_loan_amount');
+            $table->index('total_loan_amount', 'idx_entities_loan_amount');
         });
     }
 

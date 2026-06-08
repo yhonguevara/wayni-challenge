@@ -10,6 +10,14 @@ class Entity extends Model
 {
     protected $table = 'entities';
 
+    /**
+     * @var list<string>
+     */
+    protected $fillable = [
+        'entity_code',
+        'total_loan_amount',
+    ];
+
     protected function casts(): array
     {
         return [

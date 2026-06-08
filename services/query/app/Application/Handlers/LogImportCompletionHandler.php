@@ -19,11 +19,14 @@ final class LogImportCompletionHandler implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public string $queue = 'import-completed';
-
     public int $tries = 3;
 
     public int $backoff = 10;
+
+    public function __construct()
+    {
+        $this->queue = 'import-completed';
+    }
 
     public function handle(ImportCompletedEvent $event): void
     {
