@@ -26,7 +26,7 @@ final class UploadController extends Controller
     {
         $importId = (string) Str::uuid();
 
-        if ($request->hasFile()) {
+        if ($request->hasUploadedFile()) {
             // Multipart upload — save to local storage
             $file = $request->file('file');
             $filename = $importId . '.txt';
@@ -41,7 +41,7 @@ final class UploadController extends Controller
         // Create ImportLog (status: pending)
         ImportLog::create([
             'id' => $importId,
-            'filename' => $request->hasFile()
+            'filename' => $request->hasUploadedFile()
                 ? $request->file('file')->getClientOriginalName()
                 : basename($fileSource),
             'status' => 'pending',

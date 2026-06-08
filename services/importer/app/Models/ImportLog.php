@@ -17,6 +17,22 @@ class ImportLog extends Model
 
     public $incrementing = false;
 
+    /**
+     * @var list<string>
+     */
+    protected $fillable = [
+        'id',
+        'filename',
+        'status',
+        'total_lines',
+        'total_debtors',
+        'total_entities',
+        'duration_ms',
+        'error_message',
+        'started_at',
+        'finished_at',
+    ];
+
     protected function casts(): array
     {
         return [

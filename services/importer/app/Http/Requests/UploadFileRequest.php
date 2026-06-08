@@ -65,9 +65,9 @@ final class UploadFileRequest extends FormRequest
     /**
      * Check if the request contains a file upload.
      */
-    public function hasFile(): bool
+    public function hasUploadedFile(): bool
     {
-        return $this->hasFile('file');
+        return parent::hasFile('file');
     }
 
     /**
