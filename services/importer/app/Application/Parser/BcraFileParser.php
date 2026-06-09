@@ -113,7 +113,7 @@ final class BcraFileParser
             identificationType: substr($line, 11, 2),   // pos 12-13
             identificationNumber: trim(substr($line, 13, 11)), // pos 14-24 (CHARACTER, trim spaces)
             activity: substr($line, 24, 3),             // pos 25-27
-            situation: substr($line, 27, 2),            // pos 28-29
+            situation: $this->normalizeSituation(substr($line, 27, 2)), // pos 28-29
             loans: $this->parseAmount(substr($line, 29, 12)),   // pos 30-41
             unused: $this->parseAmount(substr($line, 41, 12)),  // pos 42-53
             guarantees: $this->parseAmount(substr($line, 53, 12)),  // pos 54-65
@@ -133,6 +133,20 @@ final class BcraFileParser
             technicalIrrecoverable: substr($line, 166, 1), // pos 167
             daysOverdue: (int) substr($line, 167, 4),   // pos 168-171
         );
+    }
+
+    /**
+     * Normalize the situation code to the canonical 2-digit form.
+     *
+     * The official spec defines Campo 6 as 2 numeric chars (01, 03, 04, 05, 11,
+     * 21, 23), but legacy BCRA files (e.g. nov-2023) left-align a single digit
+     * with a trailing space ("1 ", "5 "). We trim the padding and zero-pad to 2,
+     * so "1 " → "01", "5 " → "05". This keeps the canonical validCodes() check
+     * working against both the new and legacy file formats.
+     */
+    private function normalizeSituation(string $raw): string
+    {
+        return str_pad(trim($raw), 2, '0', STR_PAD_LEFT);
     }
 
     /**
