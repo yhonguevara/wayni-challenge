@@ -110,7 +110,7 @@
                             throw new Error('Failed to get upload URL');
                         }
 
-                        const { upload_url, fields } = await presignResponse.json();
+                        const { upload_url, fields, key } = await presignResponse.json();
 
                         // Step 2: Upload file to S3 via pre-signed URL
                         const formData = new FormData();
@@ -151,7 +151,7 @@
                                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
                             },
                             body: JSON.stringify({
-                                key: `uploads/${this.file.name}`,
+                                key: key,
                                 size: this.file.size,
                             }),
                         });
