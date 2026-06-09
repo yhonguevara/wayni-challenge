@@ -43,6 +43,9 @@ final class LocalstackSetupCommand extends Command
         // Create S3 bucket (idempotent)
         $this->createBucket($s3Client, $bucket);
 
+        // Enable CORS so the browser can POST files directly via pre-signed URLs
+        $this->configureCors($s3Client, $bucket);
+
         // Create SQS client
         $sqsClient = new SqsClient([
             'endpoint' => $endpoint,
@@ -77,6 +80,36 @@ final class LocalstackSetupCommand extends Command
             $this->info("  S3 bucket '{$bucket}' created.");
         } catch (\Throwable $e) {
             $this->error("  Failed to create S3 bucket '{$bucket}': {$e->getMessage()}");
+        }
+    }
+
+    /**
+     * Enable CORS on the bucket so browsers can upload directly via pre-signed POST.
+     *
+     * Without this, the browser pre-flight (OPTIONS) and the POST are rejected by
+     * S3/LocalStack with "CORS is not enabled for this bucket", which surfaces in the
+     * frontend as "Network error during upload".
+     */
+    private function configureCors(S3Client $client, string $bucket): void
+    {
+        try {
+            $client->putBucketCors([
+                'Bucket' => $bucket,
+                'CORSConfiguration' => [
+                    'CORSRules' => [
+                        [
+                            'AllowedOrigins' => ['*'],
+                            'AllowedMethods' => ['GET', 'PUT', 'POST', 'HEAD'],
+                            'AllowedHeaders' => ['*'],
+                            'ExposeHeaders' => ['ETag'],
+                            'MaxAgeSeconds' => 3000,
+                        ],
+                    ],
+                ],
+            ]);
+            $this->info("  CORS enabled on bucket '{$bucket}'.");
+        } catch (\Throwable $e) {
+            $this->error("  Failed to enable CORS on bucket '{$bucket}': {$e->getMessage()}");
         }
     }
 

@@ -15,7 +15,8 @@ return [
 
     'url' => env('AWS_URL', 'http://localhost:4566'),
     'endpoint' => env('AWS_ENDPOINT', 'http://localstack:4566'),
-    'bucket' => env('S3_BUCKET', 'bcra-files'),
+    // Single source of truth: same key as the Laravel "s3" disk (config/filesystems.php).
+    'bucket' => env('AWS_BUCKET', 'bcra-files'),
     'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', true),
 ];
