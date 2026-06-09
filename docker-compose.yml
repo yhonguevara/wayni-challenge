@@ -99,7 +99,7 @@ services:
     build:
       context: ./services/query
       dockerfile: Dockerfile
-    command: ["php", "artisan", "queue:work", "sqs", "--sleep=3", "--tries=3", "--timeout=90"]
+    command: ["php", "artisan", "events:consume"]
     env_file:
       - ./services/query/.env
     depends_on:

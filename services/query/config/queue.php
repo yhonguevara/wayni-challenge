@@ -61,7 +61,9 @@ return [
             'queue' => env('SQS_QUEUE', 'default'),
             'suffix' => env('SQS_SUFFIX', ''),
             'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
-            'endpoint' => env('AWS_ENDPOINT_URL', 'http://localhost:4566'),
+            // Align with the .env key (AWS_ENDPOINT) used across services; keep
+            // AWS_ENDPOINT_URL as a fallback for Laravel's default convention.
+            'endpoint' => env('AWS_ENDPOINT', env('AWS_ENDPOINT_URL', 'http://localhost:4566')),
             'after_commit' => false,
         ],
 
