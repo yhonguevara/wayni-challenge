@@ -6,17 +6,16 @@ namespace App\Http\Controllers;
 
 use App\Application\Jobs\ProcessBcraFile;
 use App\Application\Ports\ImportLogRepository;
-use App\Http\Requests\UploadFileRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 /**
- * Controller for file upload endpoint.
+ * Controller for file ingestion endpoints.
  *
- * Handles POST /upload with dual-mode file handling:
- * - Multipart: saves file to storage/app/uploads/
- * - JSON: passes S3 key to job for download
+ * Two modes:
+ * 1. Local path: POST /api/upload with JSON { "path": "/app/storage/samples/file.txt" }
+ * 2. Pre-signed URL: POST /api/presign → browser uploads to S3 → POST /api/notify-upload with S3 key
  */
 final class UploadController extends Controller
 {
@@ -25,41 +24,40 @@ final class UploadController extends Controller
     ) {}
 
     /**
-     * Handle file upload and dispatch processing job.
+     * Process a file from local filesystem path.
+     *
+     * Accepts JSON: { "path": "/app/storage/samples/deudores_sample_10k.txt" }
+     * The path must be accessible from within the Docker container.
      */
-    public function store(UploadFileRequest $request): JsonResponse
+    public function store(Request $request): JsonResponse
     {
-        $importId = (string) Str::uuid();
+        $validated = $request->validate([
+            'path' => ['required', 'string'],
+        ]);
 
-        if ($request->hasUploadedFile()) {
-            // Multipart upload — save to local storage
-            $file = $request->file('file');
-            $filename = $importId . '.txt';
-            $relativePath = $file->storeAs('uploads', $filename, 'local');
-            $fileSource = storage_path('app/' . $relativePath);
-            $fileSize = $file->getSize();
-        } else {
-            // JSON with S3 key — job will download it
-            $fileSource = (string) $request->input('s3_key');
-            $fileSize = null;
+        $filePath = $validated['path'];
+
+        if (!file_exists($filePath)) {
+            return response()->json([
+                'error' => 'File not found',
+                'path' => $filePath,
+            ], 404);
         }
 
-        // Create ImportLog (status: pending)
+        $importId = (string) Str::uuid();
+
         $this->importLogRepository->create([
             'id' => $importId,
-            'filename' => $request->hasUploadedFile()
-                ? $request->file('file')->getClientOriginalName()
-                : basename($fileSource),
+            'filename' => basename($filePath),
             'status' => 'pending',
         ]);
 
-        // Dispatch ProcessBcraFile job
-        ProcessBcraFile::dispatch($fileSource, $importId);
+        ProcessBcraFile::dispatch($filePath, $importId);
 
         return response()->json([
             'import_log_id' => $importId,
             'status' => 'queued',
-            'message' => 'File uploaded and processing started',
+            'message' => 'File processing started',
         ], 202);
     }
 
