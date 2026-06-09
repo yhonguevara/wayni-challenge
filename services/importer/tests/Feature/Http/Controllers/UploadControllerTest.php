@@ -114,4 +114,49 @@ class UploadControllerTest extends TestCase
         // Assert
         Queue::assertPushed(ProcessBcraFile::class);
     }
+
+    public function test_post_notify_upload_with_s3_key_returns_202(): void
+    {
+        // Arrange
+        Queue::fake();
+
+        // Act — called by the browser after a direct-to-S3 pre-signed upload
+        $response = $this->postJson('/api/notify-upload', [
+            'key' => 'uploads/abc-deudores.txt',
+            'size' => 28,
+        ]);
+
+        // Assert
+        $response->assertStatus(202);
+        $response->assertJsonStructure(['import_log_id', 'status', 'message']);
+        $this->assertSame('queued', $response->json('status'));
+    }
+
+    public function test_post_notify_upload_without_key_returns_422(): void
+    {
+        // Act
+        $response = $this->postJson('/api/notify-upload', ['size' => 28]);
+
+        // Assert
+        $response->assertStatus(422);
+    }
+
+    public function test_post_notify_upload_creates_import_log_and_dispatches_job(): void
+    {
+        // Arrange
+        Queue::fake();
+
+        // Act
+        $response = $this->postJson('/api/notify-upload', [
+            'key' => 'uploads/abc-deudores.txt',
+        ]);
+
+        // Assert
+        $importId = $response->json('import_log_id');
+        $this->assertDatabaseHas('import_logs', [
+            'id' => $importId,
+            'status' => 'pending',
+        ]);
+        Queue::assertPushed(ProcessBcraFile::class);
+    }
 }
