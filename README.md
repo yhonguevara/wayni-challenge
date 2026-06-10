@@ -3,46 +3,56 @@
 [![PHP 8.5](https://img.shields.io/badge/PHP-8.5-777BB4)](https://php.net)
 [![Laravel 13](https://img.shields.io/badge/Laravel-13-FF2D20)](https://laravel.com)
 [![PostgreSQL 18](https://img.shields.io/badge/PostgreSQL-18-336791)](https://postgresql.org)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![Tests](https://img.shields.io/badge/Tests-193%20passing-brightgreen)]()
 
-Microservices-based system for processing the BCRA (Central Bank of Argentina) debtor registry file. Implements CQRS, event-driven architecture, and Clean Architecture with DDD tactical patterns.
+Microservices system that processes the BCRA (Central Bank of Argentina) debtor registry file (~6 GB TXT). Parses, transforms, aggregates, and persists data with event-driven CQRS architecture.
 
 ## Architecture
 
 ```
-                        ┌─────────────────────────────────────────────────────┐
-                        │                 Docker Compose                      │
-                        │                                                     │
-  deudores_bcra.txt     │  ┌──────────────┐    SQS     ┌──────────────────┐  │
-  ─────────────────────►│  │   Importer   │───────────►│  Query Worker    │  │
-  POST /upload          │  │  (port 8001) │  3 queues  │  (queue:work)    │  │
-                        │  └──────┬───────┘            └────────┬─────────┘  │
-                        │         │                             │            │
-                        │  ┌──────▼───────┐            ┌────────▼─────────┐  │
-                        │  │ Importer DB  │            │    Query DB      │  │
-                        │  │ (PostgreSQL) │            │   (PostgreSQL)   │  │
-                        │  └──────────────┘            └──────────────────┘  │
-                        │                                           │       │
-                        │                              ┌────────────▼─────┐  │
-                        │                              │    Query API     │  │
-                        │                              │   (port 8000)    │  │
-                        │                              └──────────────────┘  │
-                        │                                                     │
-                        │  ┌──────────────┐  ┌──────────────┐                │
-                        │  │  LocalStack  │  │     S3       │                │
-                        │  │  (SQS + S3)  │  │   (files)    │                │
-                        │  └──────────────┘  └──────────────┘                │
-                        └─────────────────────────────────────────────────────┘
+                          ┌──────────────────────────────────────────────────────────┐
+                          │                    Docker Compose                        │
+                          │                                                          │
+  deudores_bcra.txt       │  ┌────────────────┐     SQS      ┌───────────────────┐  │
+  ──────────────────────► │  │   Importer     │─────────────►│ Importer Consumer │  │
+  POST /upload            │  │  (port 8001)   │  3 queues    │ (events:consume)  │  │
+  or artisan command      │  └───────┬────────┘              └────────┬──────────┘  │
+                          │          │                                │              │
+                          │  ┌───────▼────────┐              ┌───────▼──────────┐   │
+                          │  │Importer Worker │              │   Shared DB      │   │
+                          │  │ (queue:work)   │              │  (PostgreSQL)    │   │
+                          │  └────────────────┘              └───────┬──────────┘   │
+                          │                                          │              │
+                          │                                 ┌────────▼─────────┐    │
+                          │                                 │    Query API     │    │
+                          │                                 │  (port 8000)     │    │
+                          │                                 │  (read-only)     │    │
+                          │                                 └──────────────────┘    │
+                          │                                                          │
+                          │  ┌──────────────┐  ┌──────────────┐                      │
+                          │  │  LocalStack  │  │     S3       │                      │
+                          │  │  (SQS + S3)  │  │   (files)    │                      │
+                          │  └──────────────┘  └──────────────┘                      │
+                          └──────────────────────────────────────────────────────────┘
 ```
 
-**Services:**
-- **Importer** (Write Side) — Parses BCRA TXT file, publishes domain events to SQS, stores files in S3
-- **Query API** (Read Side) — REST API for querying debtors and entities from the read model
-- **Query Worker** — Consumes SQS events and upserts data into the query database
+### Services
 
-**Communication:** Asynchronous via SQS (3 queues: `debtor-events`, `entity-events`, `import-completed`)
+| Service | Role | Command |
+|---------|------|---------|
+| **Importer** | HTTP API — receives files, dispatches processing jobs | `php artisan serve` |
+| **Importer Worker** | Processes Laravel queue jobs — parses TXT, publishes events to SQS | `php artisan queue:work` |
+| **Importer Consumer** | Consumes SQS events — upserts debtors/entities, fires completion notification | `php artisan events:consume` |
+| **Query API** | Read-only REST API — queries debtors and entities | `php artisan serve` |
+| **Shared DB** | Single PostgreSQL instance — importer writes, query reads | — |
+| **LocalStack** | Simulates AWS SQS and S3 locally | — |
 
-**Database:** Database-per-service pattern — each service owns its PostgreSQL instance
+### Key Design Decisions
+
+- **Shared database** — one PostgreSQL instance; importer is the sole writer, query is read-only
+- **Completion sentinel** — notification fires exactly once, only after ALL records are persisted (not just enqueued)
+- **Processed-events ledger** — idempotent increments under SQS at-least-once delivery
+- **S3 direct upload** — multi-GB files go straight to S3 via pre-signed URL, never through PHP
 
 ## Tech Stack
 
@@ -52,275 +62,193 @@ Microservices-based system for processing the BCRA (Central Bank of Argentina) d
 | Framework | Laravel 13 |
 | Database | PostgreSQL 18 |
 | Container | Docker Compose |
-| AWS Simulation | LocalStack 4.14 (SQS/S3) |
-| IaC | AWS SAM |
-| Architecture | Microservices · CQRS · Event-Driven · Clean Architecture · DDD |
+| AWS Simulation | LocalStack 4.14 (SQS + S3) |
+| Architecture | Microservices, CQRS, Event-Driven, Clean Architecture, DDD |
 
 ## Quick Start
 
 ```bash
-# 1. Start all services
+# Clone and start
+git clone <repo-url> && cd wayni-challenge
 docker compose up -d
 
-# 2. Run migrations and setup LocalStack
-./init.sh
-
-# 3. Verify services are healthy
-curl http://localhost:8001/up && echo "" && curl http://localhost:8000/up
+# Wait ~30s for init to complete, then verify
+docker compose ps
 ```
 
-**Prerequisites:** Docker, Docker Compose, and the BCRA data file (`deudores_bcra.txt`).
+That's it. The `init` service automatically runs migrations, creates the test database, and sets up LocalStack (S3 bucket + SQS queues).
+
+### Verify services are healthy
+
+```bash
+curl -s http://localhost:8001/up && echo "" && curl -s http://localhost:8000/up
+```
+
+## Processing a File
+
+### Option A: Copy file into container (recommended for the 6 GB BCRA file)
+
+```bash
+# Copy the file into the importer container
+docker compose cp deudores_bcra.txt importer:/app/storage/app/uploads/
+
+# Process it
+docker compose exec importer php artisan bcra:process /app/storage/app/uploads/deudores_bcra.txt
+```
+
+The command streams a processing summary: total lines, debtors, entities, and duration.
+
+### Option B: S3 pre-signed URL (for browser/client uploads)
+
+```bash
+# 1. Get pre-signed upload URL
+curl -s -X POST http://localhost:8001/api/presign \
+  -H "Content-Type: application/json" \
+  -d '{"filename": "deudores.txt"}' | jq .
+
+# 2. Upload directly to S3 (using returned fields)
+curl -X POST "<upload_url>" \
+  -F "key=<key>" \
+  -F "file=@deudores_bcra.txt" \
+  ... (other fields from step 1)
+
+# 3. Notify completion
+curl -X POST http://localhost:8001/api/notify-upload \
+  -H "Content-Type: application/json" \
+  -d '{"key": "<key>"}'
+```
+
+### Option C: Multipart upload (small files only)
+
+```bash
+curl -X POST http://localhost:8001/upload -F "file=@small_file.txt"
+```
+
+> **Note:** The real BCRA file is ~6 GB. Use Option A or B — multipart upload through PHP will hit memory/timeout limits.
 
 ## API Endpoints
 
-### Importer Service (port 8001)
+### Importer (port 8001)
 
-#### Upload File
-
-```bash
-# Multipart form upload
-curl -X POST http://localhost:8001/upload \
-  -F "file=@deudores_bcra.txt"
-
-# Response: 202 Accepted
-# {"message":"File received. Processing started.","import_log_id":42}
-```
-
-#### Pre-Signed URL Upload (S3)
-
-```bash
-# Get pre-signed URL
-curl -X POST http://localhost:8001/api/presign \
-  -H "Content-Type: application/json" \
-  -d '{"filename": "deudores.txt"}'
-
-# Upload to S3 using returned URL
-curl -X PUT "<upload_url>" -H "Content-Type: text/plain" --data-binary @deudores_bcra.txt
-
-# Notify upload completion
-curl -X POST http://localhost:8001/api/notify-upload \
-  -H "Content-Type: application/json" \
-  -d '{"key": "uploads/deudores.txt", "size": 12345}'
-```
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/upload` | Upload file via multipart (small files) |
+| `POST` | `/api/presign` | Get S3 pre-signed URL for direct upload |
+| `POST` | `/api/notify-upload` | Notify that S3 upload completed |
 
 ### Query API (port 8000)
 
-#### Get Debtor by CUIT
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/debtors/{cuit}` | Get debtor by CUIT |
+| `GET` | `/debtors/top/{n}` | Top N debtors by total loan amount |
+| `GET` | `/debtors?situation={code}` | List debtors with filters and pagination |
+| `GET` | `/entities/{code}` | Get entity by code |
+
+### Examples
 
 ```bash
-curl http://localhost:8000/debtors/20123456789
+# Get debtor by CUIT
+curl -s http://localhost:8000/debtors/20123456789 | jq .
 
-# Response: 200 OK
-# {"data":{"identificationNumber":"20123456789","maxSituation":"03","totalLoanAmount":"1250.00"}}
-```
+# Top 10 debtors
+curl -s http://localhost:8000/debtors/top/10 | jq .
 
-#### Get Entity by Code
-
-```bash
-curl http://localhost:8000/entities/00011
-
-# Response: 200 OK
-# {"data":{"entityCode":"00011","totalLoanAmount":"98430.00"}}
-```
-
-#### Top N Debtors by Loan Amount
-
-```bash
-curl http://localhost:8000/debtors/top/10
-
-# Response: 200 OK
-# {"data":[...],"meta":{"count":10}}
-```
-
-#### List Debtors with Filters
-
-```bash
 # Filter by situation code
-curl "http://localhost:8000/debtors?situation=03&per_page=50"
+curl -s "http://localhost:8000/debtors?situation=05&per_page=50" | jq .
 
-# Response: 200 OK
-# {"data":[...],"meta":{"current_page":1,"per_page":50,"total":1240}}
+# Get entity
+curl -s http://localhost:8000/entities/00011 | jq .
 ```
 
-**Situation codes:** `01` (normal), `03` (with observation), `04` (non-compliant), `05` (deficient), `11` (doubtful), `21` (irrecoverable), `23` (irrecoverable - judicial)
-
-## Processing Files
-
-### Via Upload Endpoint
-
-```bash
-curl -X POST http://localhost:8001/upload -F "file=@deudores_bcra.txt"
-```
-
-### Via Artisan Command
-
-```bash
-# Copy file into container
-docker compose cp deudores_bcra.txt importer:/tmp/
-
-# Process file
-docker compose exec importer php artisan bcra:process /tmp/deudores_bcra.txt
-```
-
-The command outputs a processing summary with total lines, debtors, entities, and duration.
+**Situation codes:** `01` normal, `03` with observation, `04` non-compliant, `05` deficient, `11` doubtful, `21` irrecoverable, `23` irrecoverable (judicial)
 
 ## Testing
 
 ```bash
-# Run importer tests
+# Importer: 175 tests (unit + feature + integration)
 docker compose exec importer php artisan test
 
-# Run query API tests
+# Query API: 18 tests
 docker compose exec query php artisan test
 ```
 
-Tests include unit tests for domain logic, feature tests for API endpoints, and integration tests for event handling.
+**Total: 193 tests, 456 assertions, 0 failures.**
+
+Each service uses its own isolated test database (`wayni_importer_test` and `wayni_query_test`) to prevent schema collisions when running `RefreshDatabase`.
+
+Tests cover:
+- Domain value objects and business rules (situation severity, amount parsing, CUIT validation)
+- File parser (ISO-8859-1 encoding, fixed-width positions, edge cases)
+- Data transformer (aggregation by CUIT/entity, MAX situation, SUM loans)
+- Event handlers (upsert idempotency, completion sentinel, exactly-once notification)
+- SQS integration (publish/consume round-trip against LocalStack)
+- API controllers (CRUD, pagination, validation, 404 handling)
 
 ## Project Structure
 
 ```
 wayni-challenge/
 ├── services/
-│   ├── importer/              # Write-side microservice
+│   ├── importer/                  # Write-side service
 │   │   ├── app/
-│   │   │   ├── Domain/        # Entities, Value Objects, Events
-│   │   │   ├── Application/   # Use Cases, DTOs
-│   │   │   ├── Infrastructure/# Eloquent, SQS, S3, File Parser
-│   │   │   └── Presentation/  # Controllers, API Resources
-│   │   ├── database/migrations/
+│   │   │   ├── Domain/            # Entities, Value Objects, Events
+│   │   │   ├── Application/       # Use Cases, Jobs, DTOs, Ports, Notification
+│   │   │   ├── Infrastructure/    # Eloquent, SQS, S3, File Parser, Handlers
+│   │   │   └── Http/              # Controllers, API Resources
+│   │   ├── database/migrations/   # ALL migrations (sole schema owner)
+│   │   ├── tests/                 # 175 tests
 │   │   ├── Dockerfile
 │   │   └── .env
-│   └── query/                 # Read-side microservice
+│   └── query/                     # Read-only service
 │       ├── app/
-│       │   ├── Domain/
-│       │   ├── Application/
-│       │   ├── Infrastructure/
-│       │   └── Presentation/
-│       ├── database/migrations/
+│       │   ├── Models/            # Read-only Eloquent models
+│       │   └── Http/              # Controllers, API Resources, Requests
+│       ├── tests/                 # 18 tests
 │       ├── Dockerfile
 │       └── .env
 ├── infrastructure/
-│   ├── template.yaml          # AWS SAM template
-│   └── samconfig.toml         # SAM deployment config
+│   └── template.yaml              # AWS SAM template
 ├── docs/
-│   └── architecture/          # Architecture documentation
-├── docker-compose.yml
-├── init.sh                    # Bootstrap script
+│   └── architecture/              # Detailed architecture docs
+├── docker-compose.yml             # 6 services: shared-db, localstack, init, importer, importer-worker, importer-consumer, query
+├── init-container.sh              # Bootstrap: migrations + test DB + LocalStack setup
 └── README.md
 ```
 
-## SAM Deployment (AWS)
+## Data Flow
 
-For deploying to real AWS infrastructure:
-
-### Prerequisites
-
-- [AWS CLI](https://aws.amazon.com/cli/) configured with credentials
-- [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
-- Existing VPC with private subnets (NAT gateway required)
-- ECR repositories for importer and query images
-
-### Build and Push Images
-
-```bash
-# Build images
-docker build -t wayni-importer ./services/importer
-docker build -t wayni-query ./services/query
-
-# Authenticate to ECR
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <account-id>.dkr.ecr.us-east-1.amazonaws.com
-
-# Tag and push
-docker tag wayni-importer:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/wayni-importer:latest
-docker tag wayni-query:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/wayni-query:latest
-docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/wayni-importer:latest
-docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/wayni-query:latest
 ```
-
-### Deploy
-
-```bash
-cd infrastructure
-
-# Validate template
-sam validate --lint
-
-# Deploy (guided - first time)
-sam deploy --guided
-
-# Deploy (subsequent)
-sam deploy
+1. File arrives (artisan command or HTTP upload)
+2. Importer Worker parses TXT line-by-line (streaming, no full-file load)
+3. Transformer aggregates in-memory: MAX situation per CUIT, SUM loans per CUIT/entity
+4. Events published to SQS: DebtorProcessed, EntityProcessed, ImportCompleted
+5. Importer Consumer processes events:
+   - Upserts debtor/entity rows (idempotent via processed_events ledger)
+   - Increments persisted counter
+   - When persisted == expected: fires completion notification (exactly once)
+6. Query API reads from the same database (read-only, no consumer needed)
 ```
-
-### Required Parameters
-
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| `Environment` | Deployment environment | `dev`, `stg`, `prod` |
-| `VpcId` | VPC for ECS tasks | `vpc-0abc1234` |
-| `SubnetIds` | Private subnets with NAT | `subnet-0abc,subnet-0def` |
-| `ImporterImageUri` | ECR image for importer | `123456.dkr.ecr.../wayni-importer:latest` |
-| `QueryImageUri` | ECR image for query | `123456.dkr.ecr.../wayni-query:latest` |
 
 ## Troubleshooting
 
-### Services not starting
-
 ```bash
-# Check service status
+# Check all services
 docker compose ps
 
-# Check logs for errors
-docker compose logs importer
-docker compose logs query
-docker compose logs query-worker
-```
+# View logs
+docker compose logs -f importer
+docker compose logs -f importer-consumer
+docker compose logs -f importer-worker
 
-### Migrations failing
+# Check database
+docker compose exec shared-db pg_isready -U wayni -d wayni
 
-```bash
-# Ensure databases are healthy
-docker compose exec importer-db pg_isready -U wayni
-docker compose exec query-db pg_isready -U wayni
+# Check LocalStack
+curl -s http://localhost:4566/_localstack/health | jq .
 
-# Run migrations manually
-docker compose exec importer php artisan migrate --force
-docker compose exec query php artisan migrate --force
-```
-
-### LocalStack not ready
-
-```bash
-# Check LocalStack health
-curl http://localhost:4566/_localstack/health
-
-# Restart LocalStack
-docker compose restart localstack
-
-# Re-run setup
-docker compose exec importer php artisan localstack:setup
-```
-
-### Queue worker not consuming
-
-```bash
-# Check worker logs
-docker compose logs -f query-worker
-
-# Verify queues exist
-docker compose exec importer php artisan tinker
->>> app(Aws\Sqs\SqsClient::class)->listQueues(['QueueNamePrefix' => ''])->get('QueueUrls')
-
-# Restart worker
-docker compose restart query-worker
-```
-
-### Re-run full setup
-
-```bash
-docker compose down -v
-docker compose up -d
-./init.sh
+# Full reset
+docker compose down -v && docker compose up -d
 ```
 
 ## License
