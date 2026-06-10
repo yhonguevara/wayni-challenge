@@ -3,28 +3,8 @@ set -e
 
 echo "🚀 Initializing BCRA Challenge environment..."
 
-# Wait for importer database
-echo "⏳ Waiting for importer-db..."
-cd /importer
-until php artisan db:show --connection=pgsql > /dev/null 2>&1; do
-  sleep 1
-done
-echo "✅ importer-db is ready"
-
-# Wait for query database
-echo "⏳ Waiting for query-db..."
-cd /query
-until php artisan db:show --connection=pgsql > /dev/null 2>&1; do
-  sleep 1
-done
-echo "✅ query-db is ready"
-
-# Wait for LocalStack
-echo "⏳ Waiting for LocalStack..."
-until curl -f http://localstack:4566/_localstack/health > /dev/null 2>&1; do
-  sleep 1
-done
-echo "✅ LocalStack is ready"
+# Dependencies are already healthy (enforced by depends_on with healthchecks)
+echo "✅ All dependencies are ready (DBs + LocalStack)"
 
 # Run migrations
 echo "🔄 Running importer migrations..."
