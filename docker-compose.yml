@@ -47,6 +47,23 @@ services:
       timeout: 5s
       retries: 5
 
+  init:
+    build:
+      context: ./services/importer
+      dockerfile: Dockerfile
+    volumes:
+      - ./services/importer:/importer
+      - ./services/query:/query
+      - ./init-container.sh:/init-container.sh
+    depends_on:
+      importer-db:
+        condition: service_healthy
+      query-db:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/init-container.sh"]
+
   importer:
     build:
       context: ./services/importer
@@ -56,10 +73,8 @@ services:
     env_file:
       - ./services/importer/.env
     depends_on:
-      importer-db:
-        condition: service_healthy
-      localstack:
-        condition: service_healthy
+      init:
+        condition: service_completed_successfully
     volumes:
       - ./services/importer:/app
       - /app/vendor
@@ -79,10 +94,8 @@ services:
     env_file:
       - ./services/importer/.env
     depends_on:
-      importer-db:
-        condition: service_healthy
-      localstack:
-        condition: service_healthy
+      init:
+        condition: service_completed_successfully
     volumes:
       - ./services/importer:/app
       - /app/vendor
@@ -97,10 +110,8 @@ services:
     env_file:
       - ./services/query/.env
     depends_on:
-      query-db:
-        condition: service_healthy
-      localstack:
-        condition: service_healthy
+      init:
+        condition: service_completed_successfully
     volumes:
       - ./services/query:/app
       - /app/vendor
@@ -120,10 +131,8 @@ services:
     env_file:
       - ./services/query/.env
     depends_on:
-      query-db:
-        condition: service_healthy
-      localstack:
-        condition: service_healthy
+      init:
+        condition: service_completed_successfully
     volumes:
       - ./services/query:/app
       - /app/vendor
