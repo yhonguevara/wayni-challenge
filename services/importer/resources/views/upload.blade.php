@@ -52,7 +52,7 @@
     <div class="container" x-data="uploadForm()">
         <div class="tabs">
             <a href="/upload" class="tab active">Carga de Archivos</a>
-            <a href="/panel" class="tab">Panel API</a>
+            <a href="http://localhost:8000/panel" class="tab">Panel API</a>
         </div>
         
         <h1>Carga de Archivos BCRA</h1>

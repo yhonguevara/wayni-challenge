@@ -74,17 +74,17 @@
 <body>
     <div class="page-container" x-data="apiPanel()">
         <div class="tabs">
-            <a href="/upload" class="tab">Carga de Archivos</a>
+            <a href="http://localhost:8001/upload" class="tab">Carga de Archivos</a>
             <span class="tab active">Panel API</span>
         </div>
 
         <h1>Panel de Pruebas API BCRA</h1>
-        <p class="subtitle">Probá los endpoints de la Query API. Asegurate de que el servicio query esté corriendo en el puerto 8000.</p>
+        <p class="subtitle">Probá los endpoints de la Query API. Este panel es servido por el propio servicio de consulta.</p>
 
         {{-- Section 1: Get Debtor by CUIT --}}
         <div class="section">
             <h2><span class="method-badge">GET</span> Obtener Deudor por CUIT</h2>
-            <div class="endpoint-path">/debtors/{cuit}</div>
+            <div class="endpoint-path">/api/debtors/{cuit}</div>
             <div class="form-row">
                 <div class="form-group">
                     <label>CUIT</label>
@@ -119,7 +119,7 @@
         {{-- Section 2: Get Entity by Code --}}
         <div class="section">
             <h2><span class="method-badge">GET</span> Obtener Entidad por Código</h2>
-            <div class="endpoint-path">/entities/{code}</div>
+            <div class="endpoint-path">/api/entities/{code}</div>
             <div class="form-row">
                 <div class="form-group">
                     <label>Código de Entidad</label>
@@ -154,7 +154,7 @@
         {{-- Section 3: Top N Debtors --}}
         <div class="section">
             <h2><span class="method-badge">GET</span> Top N Deudores</h2>
-            <div class="endpoint-path">/debtors/top/{n}</div>
+            <div class="endpoint-path">/api/debtors/top/{n}</div>
             <div class="form-row">
                 <div class="form-group" style="max-width:160px;">
                     <label>N (1–100)</label>
@@ -189,7 +189,7 @@
         {{-- Section 4: List Debtors --}}
         <div class="section">
             <h2><span class="method-badge">GET</span> Listar Deudores (con filtros)</h2>
-            <div class="endpoint-path">/debtors?situation={code}&per_page={n}&page={p}</div>
+            <div class="endpoint-path">/api/debtors?situation={code}&per_page={n}&page={p}</div>
             <div class="form-row">
                 <div class="form-group">
                     <label>Situación</label>
@@ -267,7 +267,9 @@
 
     <script>
         function apiPanel() {
-            const BASE = 'http://localhost:8000/api';
+            // The panel is served by the query service itself, so the API is
+            // same-origin — relative '/api' avoids any cross-origin/CORS concern.
+            const BASE = '/api';
 
             function emptySection() {
                 return { loading: false, response: null, responseText: '', responseTime: null, error: '' };
@@ -303,7 +305,7 @@
                         }
                     } catch (e) {
                         section.responseTime = Math.round(performance.now() - start);
-                        section.error = 'No se pudo conectar a la Query API en ' + BASE + '\n' + e.message;
+                        section.error = 'No se pudo conectar a la Query API\n' + e.message;
                     } finally {
                         section.loading = false;
                     }
@@ -329,7 +331,8 @@
 
                 copyCurl(type) {
                     const url = this.buildUrl(type);
-                    navigator.clipboard.writeText(`curl -s '${url}' | jq .`).then(() => {
+                    const full = url.startsWith('http') ? url : `http://localhost:8000${url}`;
+                    navigator.clipboard.writeText(`curl -s '${full}' | jq .`).then(() => {
                         this.showToast = true;
                         setTimeout(() => this.showToast = false, 1800);
                     });
