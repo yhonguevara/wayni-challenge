@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>BCRA File Upload — Wayni</title>
+    <title>Carga de Archivos BCRA — Wayni</title>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -14,7 +14,7 @@
         p.subtitle { color: #666; margin-bottom: 2rem; font-size: 0.875rem; }
         
         .tabs { display: flex; gap: 0.5rem; margin-bottom: 2rem; border-bottom: 2px solid #e5e7eb; }
-        .tab { padding: 0.75rem 1.5rem; border: none; background: none; cursor: pointer; font-size: 0.875rem; font-weight: 600; color: #6b7280; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
+        .tab { padding: 0.75rem 1.5rem; border: none; background: none; cursor: pointer; font-size: 0.875rem; font-weight: 600; color: #6b7280; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; text-decoration: none; display: inline-block; }
         .tab:hover { color: #6366f1; }
         .tab.active { color: #6366f1; border-bottom-color: #6366f1; }
         
@@ -50,8 +50,13 @@
 </head>
 <body>
     <div class="container" x-data="uploadForm()">
-        <h1>BCRA File Upload</h1>
-        <p class="subtitle">Select a method to upload BCRA padron files for processing.</p>
+        <div class="tabs">
+            <a href="/upload" class="tab active">Carga de Archivos</a>
+            <a href="/panel" class="tab">Panel API</a>
+        </div>
+        
+        <h1>Carga de Archivos BCRA</h1>
+        <p class="subtitle">Seleccioná un método para cargar archivos del padrón BCRA para su procesamiento.</p>
 
         <div class="tabs">
             <button 
@@ -59,21 +64,21 @@
                 :class="{ 'active': mode === 'presigned' }"
                 @click="mode = 'presigned'; reset()"
             >
-                Mode A: File Upload
+                Modo A: Subir Archivo
             </button>
             <button 
                 class="tab" 
                 :class="{ 'active': mode === 'local' }"
                 @click="mode = 'local'; reset()"
             >
-                Mode B: Local Path
+                Modo B: Ruta Local
             </button>
         </div>
 
         <!-- Mode A: Pre-signed URL Upload -->
         <div x-show="mode === 'presigned'">
             <div class="mode-description">
-                <strong>Mode A:</strong> Upload a file from your computer. The file is uploaded directly to S3 using a pre-signed URL, then processed by the backend.
+                <strong>Modo A:</strong> Subí un archivo desde tu computadora. El archivo se sube directamente a S3 usando una URL pre-firmada, luego es procesado por el backend.
             </div>
 
             <div class="file-input-wrapper">
@@ -90,8 +95,8 @@
                 :disabled="!file || uploading"
                 @click="uploadPresigned()"
             >
-                <span x-show="!uploading">Upload File</span>
-                <span x-show="uploading">Uploading... <span x-text="progress"></span>%</span>
+                <span x-show="!uploading">Subir Archivo</span>
+                <span x-show="uploading">Subiendo... <span x-text="progress"></span>%</span>
             </button>
 
             <div class="progress-bar" x-show="uploading">
@@ -102,11 +107,11 @@
         <!-- Mode B: Local Path -->
         <div x-show="mode === 'local'">
             <div class="mode-description">
-                <strong>Mode B:</strong> Process a file already present in the server filesystem. Enter the absolute path to the file inside the Docker container.
+                <strong>Modo B:</strong> Procesá un archivo que ya está en el sistema de archivos del servidor. Ingresá la ruta absoluta al archivo dentro del contenedor Docker.
             </div>
 
             <div class="path-input-wrapper">
-                <label for="local-path">File Path</label>
+                <label for="local-path">Ruta del Archivo</label>
                 <input
                     type="text"
                     id="local-path"
@@ -114,7 +119,7 @@
                     x-model="localPath"
                     @input="status = null"
                 >
-                <div class="hint">Copy the file into the container first: <code>docker compose cp deudores_bcra.txt importer:/app/storage/app/uploads/</code></div>
+                <div class="hint">Primero copiá el archivo al contenedor: <code>docker compose cp deudores_bcra.txt importer:/app/storage/app/uploads/</code></div>
             </div>
 
             <button
@@ -122,22 +127,22 @@
                 :disabled="!localPath || uploading"
                 @click="uploadLocal()"
             >
-                <span x-show="!uploading">Process File</span>
-                <span x-show="uploading">Processing...</span>
+                <span x-show="!uploading">Procesar Archivo</span>
+                <span x-show="uploading">Procesando...</span>
             </button>
         </div>
 
         <div class="status status-success" x-show="status === 'success'">
-            File uploaded successfully! Processing has been queued.
+            ¡Archivo subido exitosamente! El procesamiento ha sido encolado.
         </div>
 
         <div class="status status-processing" x-show="status === 'processing'">
-            File is being processed. You will be notified when complete.
+            El archivo está siendo procesado. Recibirás una notificación cuando termine.
         </div>
 
         <div class="status status-error" x-show="status === 'error'">
-            <strong>Upload failed:</strong> <span x-text="errorMessage"></span>
-            <button class="btn btn-retry" @click="mode === 'presigned' ? uploadPresigned() : uploadLocal()">Retry Upload</button>
+            <strong>Error en la carga:</strong> <span x-text="errorMessage"></span>
+            <button class="btn btn-retry" @click="mode === 'presigned' ? uploadPresigned() : uploadLocal()">Reintentar Carga</button>
         </div>
     </div>
 

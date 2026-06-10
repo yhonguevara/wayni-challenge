@@ -86,19 +86,9 @@ curl -s http://localhost:8001/up && echo "" && curl -s http://localhost:8000/up
 
 ## Processing a File
 
-### Option A: Copy file into container (recommended for the 6 GB BCRA file)
+> **⚠️ IMPORTANT:** The real BCRA file is ~6 GB. Due to performance and local capacity constraints, **the original file can only be processed using Option B** (copy to container + artisan command). Options A and C are provided for testing with smaller files or API integration purposes.
 
-```bash
-# Copy the file into the importer container
-docker compose cp deudores_bcra.txt importer:/app/storage/app/uploads/
-
-# Process it
-docker compose exec importer php artisan bcra:process /app/storage/app/uploads/deudores_bcra.txt
-```
-
-The command streams a processing summary: total lines, debtors, entities, and duration.
-
-### Option B: S3 pre-signed URL (for browser/client uploads)
+### Option A: S3 pre-signed URL (for browser/client uploads)
 
 ```bash
 # 1. Get pre-signed upload URL
@@ -118,13 +108,33 @@ curl -X POST http://localhost:8001/api/notify-upload \
   -d '{"key": "<key>"}'
 ```
 
+### Option B: Copy file into container (REQUIRED for the 6 GB BCRA file)
+
+```bash
+# Copy the file into the importer container
+docker compose cp deudores_bcra.txt importer:/app/storage/app/uploads/
+
+# Process it
+docker compose exec importer php artisan bcra:process /app/storage/app/uploads/deudores_bcra.txt
+```
+
+The command streams a processing summary: total lines, debtors, entities, and duration.
+
 ### Option C: Multipart upload (small files only)
 
 ```bash
 curl -X POST http://localhost:8001/upload -F "file=@small_file.txt"
 ```
 
-> **Note:** The real BCRA file is ~6 GB. Use Option A or B — multipart upload through PHP will hit memory/timeout limits.
+## Web Interface
+
+The importer service provides a web interface for file upload and API testing:
+
+| URL | Description |
+|-----|-------------|
+| http://localhost:8001/ | Redirects to upload page |
+| http://localhost:8001/upload | File upload interface (Mode A: S3 pre-signed, Mode B: local path) |
+| http://localhost:8001/panel | API testing panel — test all Query API endpoints interactively |
 
 ## API Endpoints
 
