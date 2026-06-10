@@ -110,11 +110,11 @@
                 <input
                     type="text"
                     id="local-path"
-                    placeholder="/app/storage/samples/deudores_sample_10k.txt"
+                    placeholder="/app/storage/app/deudores_bcra.txt"
                     x-model="localPath"
                     @input="status = null"
                 >
-                <div class="hint">Example: /app/storage/samples/deudores_sample_10k.txt</div>
+                <div class="hint">Copy the file into the container first: <code>docker compose cp deudores_bcra.txt importer:/app/storage/app/</code></div>
             </div>
 
             <button
