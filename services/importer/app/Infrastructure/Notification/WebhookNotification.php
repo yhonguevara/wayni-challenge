@@ -32,7 +32,7 @@ final class WebhookNotification implements NotificationSender
 
     public function send(ImportCompleted $event): void
     {
-        $payload = $event->toNotificationPayload();
+        $payload = $event->toSnakeCase();
 
         Http::timeout(self::TIMEOUT_SECONDS)
             ->retry(self::MAX_RETRIES, 1000)

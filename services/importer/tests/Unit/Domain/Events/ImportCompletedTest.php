@@ -88,7 +88,7 @@ class ImportCompletedTest extends TestCase
         $this->assertSame('2026-06-08T12:00:00Z', $array['completedAt']);
     }
 
-    public function test_to_notification_payload_returns_snake_case_keys(): void
+    public function test_to_snake_case_returns_snake_case_keys(): void
     {
         // Arrange
         $completedAt = new \DateTimeImmutable('2026-06-08T12:00:00Z');
@@ -103,9 +103,9 @@ class ImportCompletedTest extends TestCase
         );
 
         // Act
-        $payload = $event->toNotificationPayload();
+        $payload = $event->toSnakeCase();
 
-        // Assert — outbound notifications use snake_case keys, matching the REST API
+        // Assert — public-facing output uses snake_case keys, matching the REST API
         $this->assertSame([
             'import_id' => 'import-123',
             'filename' => 'deudores.txt',

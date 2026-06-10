@@ -25,7 +25,7 @@ final class SqsNotification implements NotificationSender
     {
         $this->client->sendMessage([
             'QueueUrl' => $this->queueUrl,
-            'MessageBody' => json_encode($event->toNotificationPayload(), JSON_THROW_ON_ERROR),
+            'MessageBody' => json_encode($event->toSnakeCase(), JSON_THROW_ON_ERROR),
             'MessageAttributes' => [
                 'event_type' => [
                     'DataType' => 'String',
