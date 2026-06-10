@@ -12,7 +12,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
 
 final class UpsertDebtorHandler implements ShouldQueue, DebtorEventHandler
 {
@@ -39,12 +38,5 @@ final class UpsertDebtorHandler implements ShouldQueue, DebtorEventHandler
                 'total_loan_amount' => $event->totalLoans,
             ],
         );
-
-        Log::info('Debtor upserted', [
-            'identification_number' => $event->identificationNumber,
-            'max_situation' => $event->maxSituation,
-            'total_loans' => $event->totalLoans,
-            'import_id' => $event->importId,
-        ]);
     }
 }

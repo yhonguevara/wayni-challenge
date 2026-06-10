@@ -12,7 +12,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
 
 final class UpsertEntityHandler implements ShouldQueue, EntityEventHandler
 {
@@ -38,11 +37,5 @@ final class UpsertEntityHandler implements ShouldQueue, EntityEventHandler
                 'total_loan_amount' => $event->totalLoans,
             ],
         );
-
-        Log::info('Entity upserted', [
-            'entity_code' => $event->entityCode,
-            'total_loans' => $event->totalLoans,
-            'import_id' => $event->importId,
-        ]);
     }
 }
