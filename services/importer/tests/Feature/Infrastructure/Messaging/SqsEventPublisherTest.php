@@ -14,8 +14,13 @@ use PHPUnit\Framework\TestCase;
 /**
  * Integration test for SqsEventPublisher against LocalStack.
  *
- * Requires: docker-compose up -d localstack
+ * Requires: docker compose up -d localstack
  * Run: php artisan test --filter=SqsEventPublisherTest
+ *
+ * Each test provisions its OWN uniquely-named queues and tears them down
+ * afterwards. This guarantees full isolation: no shared state, no reliance on
+ * SQS PurgeQueue (which is asynchronous and can take up to 60s), so the suite
+ * is deterministic whether run alone or alongside every other test.
  */
 class SqsEventPublisherTest extends TestCase
 {
@@ -24,20 +29,26 @@ class SqsEventPublisherTest extends TestCase
     private string $entityQueueUrl = '';
     private string $importCompletedQueueUrl = '';
 
+    /** Queue URLs created during a test, removed in tearDown. */
+    private array $createdQueueUrls = [];
+
+    /** Monotonic suffix so each test gets its own queue names. */
+    private static int $queueSeq = 0;
+
     protected function setUp(): void
     {
         parent::setUp();
 
-        $endpoint = env('AWS_ENDPOINT', 'http://localhost:4566');
+        $endpoint = $this->resolveEndpoint();
 
-        // Skip if LocalStack is not available
+        // Skip only when LocalStack genuinely isn't reachable (e.g. CI without it).
         if (!$this->isLocalStackAvailable($endpoint)) {
             $this->markTestSkipped('LocalStack is not available at ' . $endpoint);
         }
 
         $this->client = new SqsClient([
             'endpoint' => $endpoint,
-            'region' => 'us-east-1',
+            'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
             'version' => 'latest',
             'credentials' => [
                 'key' => env('AWS_ACCESS_KEY_ID', 'test'),
@@ -45,31 +56,33 @@ class SqsEventPublisherTest extends TestCase
             ],
         ]);
 
-        // Ensure queues exist
-        $debtorResult = $this->client->createQueue(['QueueName' => 'debtor-events']);
-        $this->debtorQueueUrl = $debtorResult['QueueUrl'];
+        $suffix = uniqid((string) (++self::$queueSeq) . '-', true);
+        $suffix = str_replace('.', '', $suffix);
 
-        $entityResult = $this->client->createQueue(['QueueName' => 'entity-events']);
-        $this->entityQueueUrl = $entityResult['QueueUrl'];
+        $this->debtorQueueUrl = $this->createQueue("debtor-events-test-{$suffix}");
+        $this->entityQueueUrl = $this->createQueue("entity-events-test-{$suffix}");
+        $this->importCompletedQueueUrl = $this->createQueue("import-completed-test-{$suffix}");
+    }
 
-        $importResult = $this->client->createQueue(['QueueName' => 'import-completed']);
-        $this->importCompletedQueueUrl = $importResult['QueueUrl'];
+    protected function tearDown(): void
+    {
+        foreach ($this->createdQueueUrls as $url) {
+            try {
+                $this->client?->deleteQueue(['QueueUrl' => $url]);
+            } catch (\Throwable) {
+                // Best-effort cleanup — a failed delete must not fail the test.
+            }
+        }
 
-        // Purge queues before each test
-        $this->client->purgeQueue(['QueueUrl' => $this->debtorQueueUrl]);
-        $this->client->purgeQueue(['QueueUrl' => $this->entityQueueUrl]);
-        $this->client->purgeQueue(['QueueUrl' => $this->importCompletedQueueUrl]);
+        $this->createdQueueUrls = [];
+
+        parent::tearDown();
     }
 
     public function test_publish_debtor_processed_event(): void
     {
         // Arrange
-        $publisher = new SqsEventPublisher(
-            $this->client,
-            $this->debtorQueueUrl,
-            $this->entityQueueUrl,
-            $this->importCompletedQueueUrl,
-        );
+        $publisher = $this->makePublisher();
 
         $event = new DebtorProcessed(
             identificationNumber: '20345123458',
@@ -82,14 +95,10 @@ class SqsEventPublisherTest extends TestCase
         $publisher->publishDebtorProcessed($event);
 
         // Assert — message should be in debtor queue
-        $result = $this->client->receiveMessage([
-            'QueueUrl' => $this->debtorQueueUrl,
-            'MaxNumberOfMessages' => 10,
-            'MessageAttributeNames' => ['All'],
-        ]);
+        $messages = $this->drainQueue($this->debtorQueueUrl, 1);
 
-        $this->assertNotEmpty($result['Messages']);
-        $message = $result['Messages'][0];
+        $this->assertCount(1, $messages);
+        $message = $messages[0];
         $body = json_decode($message['Body'], true);
 
         $this->assertSame('20345123458', $body['identificationNumber']);
@@ -101,12 +110,7 @@ class SqsEventPublisherTest extends TestCase
     public function test_publish_entity_processed_event(): void
     {
         // Arrange
-        $publisher = new SqsEventPublisher(
-            $this->client,
-            $this->debtorQueueUrl,
-            $this->entityQueueUrl,
-            $this->importCompletedQueueUrl,
-        );
+        $publisher = $this->makePublisher();
 
         $event = new EntityProcessed(
             entityCode: '00001',
@@ -118,14 +122,10 @@ class SqsEventPublisherTest extends TestCase
         $publisher->publishEntityProcessed($event);
 
         // Assert — message should be in entity queue
-        $result = $this->client->receiveMessage([
-            'QueueUrl' => $this->entityQueueUrl,
-            'MaxNumberOfMessages' => 10,
-            'MessageAttributeNames' => ['All'],
-        ]);
+        $messages = $this->drainQueue($this->entityQueueUrl, 1);
 
-        $this->assertNotEmpty($result['Messages']);
-        $message = $result['Messages'][0];
+        $this->assertCount(1, $messages);
+        $message = $messages[0];
         $body = json_decode($message['Body'], true);
 
         $this->assertSame('00001', $body['entityCode']);
@@ -136,14 +136,10 @@ class SqsEventPublisherTest extends TestCase
     public function test_publish_import_completed_event(): void
     {
         // Arrange
-        $publisher = new SqsEventPublisher(
-            $this->client,
-            $this->debtorQueueUrl,
-            $this->entityQueueUrl,
-            $this->importCompletedQueueUrl,
-        );
+        $publisher = $this->makePublisher();
 
         $event = new ImportCompleted(
+            importId: 'import-123',
             filename: 'deudores.txt',
             totalDebtors: 150,
             totalEntities: 5,
@@ -155,14 +151,10 @@ class SqsEventPublisherTest extends TestCase
         $publisher->publishImportCompleted($event);
 
         // Assert — message should be in import-completed queue
-        $result = $this->client->receiveMessage([
-            'QueueUrl' => $this->importCompletedQueueUrl,
-            'MaxNumberOfMessages' => 10,
-            'MessageAttributeNames' => ['All'],
-        ]);
+        $messages = $this->drainQueue($this->importCompletedQueueUrl, 1);
 
-        $this->assertNotEmpty($result['Messages']);
-        $message = $result['Messages'][0];
+        $this->assertCount(1, $messages);
+        $message = $messages[0];
         $body = json_decode($message['Body'], true);
 
         $this->assertSame('deudores.txt', $body['filename']);
@@ -175,12 +167,7 @@ class SqsEventPublisherTest extends TestCase
     public function test_publish_batch_events(): void
     {
         // Arrange
-        $publisher = new SqsEventPublisher(
-            $this->client,
-            $this->debtorQueueUrl,
-            $this->entityQueueUrl,
-            $this->importCompletedQueueUrl,
-        );
+        $publisher = $this->makePublisher();
 
         $events = [
             new DebtorProcessed('20345123458', '01', 100.0, 'import-001'),
@@ -192,28 +179,14 @@ class SqsEventPublisherTest extends TestCase
         $publisher->publishBatch($events);
 
         // Assert — 2 messages in debtor queue, 1 in entity queue
-        $debtorResult = $this->client->receiveMessage([
-            'QueueUrl' => $this->debtorQueueUrl,
-            'MaxNumberOfMessages' => 10,
-        ]);
-        $this->assertCount(2, $debtorResult['Messages']);
-
-        $entityResult = $this->client->receiveMessage([
-            'QueueUrl' => $this->entityQueueUrl,
-            'MaxNumberOfMessages' => 10,
-        ]);
-        $this->assertCount(1, $entityResult['Messages']);
+        $this->assertCount(2, $this->drainQueue($this->debtorQueueUrl, 2));
+        $this->assertCount(1, $this->drainQueue($this->entityQueueUrl, 1));
     }
 
     public function test_publish_batch_with_more_than_10_events(): void
     {
         // Arrange
-        $publisher = new SqsEventPublisher(
-            $this->client,
-            $this->debtorQueueUrl,
-            $this->entityQueueUrl,
-            $this->importCompletedQueueUrl,
-        );
+        $publisher = $this->makePublisher();
 
         $events = [];
         for ($i = 0; $i < 15; $i++) {
@@ -228,18 +201,78 @@ class SqsEventPublisherTest extends TestCase
         // Act
         $publisher->publishBatch($events);
 
-        // Assert — all 15 messages should arrive
-        $result = $this->client->receiveMessage([
-            'QueueUrl' => $this->debtorQueueUrl,
-            'MaxNumberOfMessages' => 10,
-        ]);
-        $this->assertCount(10, $result['Messages']);
+        // Assert — all 15 messages should arrive (batches split at 10 internally)
+        $this->assertCount(15, $this->drainQueue($this->debtorQueueUrl, 15));
+    }
 
-        $result2 = $this->client->receiveMessage([
-            'QueueUrl' => $this->debtorQueueUrl,
-            'MaxNumberOfMessages' => 10,
-        ]);
-        $this->assertCount(5, $result2['Messages']);
+    private function makePublisher(): SqsEventPublisher
+    {
+        return new SqsEventPublisher(
+            $this->client,
+            $this->debtorQueueUrl,
+            $this->entityQueueUrl,
+            $this->importCompletedQueueUrl,
+        );
+    }
+
+    /**
+     * Create a queue and register it for teardown.
+     */
+    private function createQueue(string $name): string
+    {
+        $url = $this->client->createQueue(['QueueName' => $name])['QueueUrl'];
+        $this->createdQueueUrls[] = $url;
+
+        return $url;
+    }
+
+    /**
+     * Drain up to $expected messages from a queue, polling until the count is
+     * reached or the receive calls stop returning anything.
+     *
+     * SQS does not guarantee a single ReceiveMessage returns every available
+     * message, so we loop. Bounded attempts keep a genuinely empty queue from
+     * hanging the test.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function drainQueue(string $queueUrl, int $expected): array
+    {
+        $messages = [];
+        $emptyPolls = 0;
+
+        while (count($messages) < $expected && $emptyPolls < 3) {
+            $result = $this->client->receiveMessage([
+                'QueueUrl' => $queueUrl,
+                'MaxNumberOfMessages' => 10,
+                'WaitTimeSeconds' => 1,
+                'MessageAttributeNames' => ['All'],
+            ]);
+
+            $batch = $result['Messages'] ?? [];
+
+            if (empty($batch)) {
+                $emptyPolls++;
+                continue;
+            }
+
+            $emptyPolls = 0;
+
+            foreach ($batch as $message) {
+                $messages[] = $message;
+                $this->client->deleteMessage([
+                    'QueueUrl' => $queueUrl,
+                    'ReceiptHandle' => $message['ReceiptHandle'],
+                ]);
+            }
+        }
+
+        return $messages;
+    }
+
+    private function resolveEndpoint(): string
+    {
+        return env('AWS_ENDPOINT', 'http://localstack:4566');
     }
 
     private function isLocalStackAvailable(string $endpoint): bool

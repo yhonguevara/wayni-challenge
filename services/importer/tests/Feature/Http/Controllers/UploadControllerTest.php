@@ -13,12 +13,25 @@ class UploadControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function makeTestFile(): string
+    {
+        $dir = storage_path('app/uploads');
+
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        $testFile = $dir . '/test.txt';
+        file_put_contents($testFile, 'test content');
+
+        return $testFile;
+    }
+
     public function test_post_upload_with_valid_local_path_returns_202(): void
     {
         // Arrange
         Queue::fake();
-        $testFile = storage_path('app/samples/test.txt');
-        file_put_contents($testFile, 'test content');
+        $testFile = $this->makeTestFile();
 
         // Act
         $response = $this->postJson('/api/upload', ['path' => $testFile]);
@@ -58,8 +71,7 @@ class UploadControllerTest extends TestCase
     {
         // Arrange
         Queue::fake();
-        $testFile = storage_path('app/samples/test.txt');
-        file_put_contents($testFile, 'test content');
+        $testFile = $this->makeTestFile();
 
         // Act
         $response = $this->postJson('/api/upload', ['path' => $testFile]);
@@ -79,8 +91,7 @@ class UploadControllerTest extends TestCase
     {
         // Arrange
         Queue::fake();
-        $testFile = storage_path('app/samples/test.txt');
-        file_put_contents($testFile, 'test content');
+        $testFile = $this->makeTestFile();
 
         // Act
         $this->postJson('/api/upload', ['path' => $testFile]);

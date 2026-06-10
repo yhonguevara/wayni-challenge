@@ -53,7 +53,11 @@ class CompositeNotificationSenderTest extends TestCase
 
         $composite = new CompositeNotificationSender([]);
 
-        // Act & Assert (no exception)
+        // Assert — the only contract here is "does not throw"; declaring this
+        // explicitly keeps PHPUnit from flagging the test as risky.
+        $this->expectNotToPerformAssertions();
+
+        // Act
         $composite->send($event);
     }
 }
