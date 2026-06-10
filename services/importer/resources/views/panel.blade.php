@@ -267,7 +267,7 @@
 
     <script>
         function apiPanel() {
-            const BASE = 'http://localhost:8000';
+            const BASE = 'http://localhost:8000/api';
 
             function emptySection() {
                 return { loading: false, response: null, responseText: '', responseTime: null, error: '' };
