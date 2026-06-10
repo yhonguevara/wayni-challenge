@@ -28,12 +28,14 @@ final readonly class ImportCompleted implements DomainEvent
     }
 
     /**
-     * Snake_case representation for structured logging.
+     * Snake_case payload for any OUTBOUND notification (log, webhook, SQS).
      *
-     * Distinct from toArray(), which is the camelCase SQS wire format consumed
-     * by the query service. Logs use snake_case across both services.
+     * This is the public-facing format and matches the REST API convention
+     * (snake_case). It is intentionally distinct from toArray(), which is the
+     * private camelCase wire format used only for internal importer→consumer
+     * SQS events.
      */
-    public function toLogContext(): array
+    public function toNotificationPayload(): array
     {
         return [
             'import_id' => $this->importId,
