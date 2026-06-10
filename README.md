@@ -92,48 +92,55 @@ curl -s http://localhost:8001/up && echo "" && curl -s http://localhost:8000/up
 > format (171 chars/line). Place it at the project root before running the
 > commands below.
 
-> **⚠️ IMPORTANT:** The real BCRA file is ~6 GB. Due to performance and local capacity constraints, **the original file can only be processed using Option B** (copy to container + artisan command). Options A and C are provided for testing with smaller files or API integration purposes.
+> **⚠️ IMPORTANT:** The real BCRA file is ~6 GB. Because of its size, **the original file should be processed with Option A** (copy into the container + artisan command) — the file never passes through an HTTP request. Option B (local path via API) and Option C (direct-to-S3 pre-signed) are convenient for smaller files and client integrations.
 
 > **Quickest way to verify the pipeline end-to-end:** drop a small TXT (a few
-> thousand lines is plenty) at the project root and run Option B with it — then
+> thousand lines is plenty) into the importer container and run Option A — then
 > open the query panel at http://localhost:8000/panel to see the results.
 
-### Option A: S3 pre-signed URL (for browser/client uploads)
-
-```bash
-# 1. Get pre-signed upload URL
-curl -s -X POST http://localhost:8001/api/presign \
-  -H "Content-Type: application/json" \
-  -d '{"filename": "deudores.txt"}' | jq .
-
-# 2. Upload directly to S3 (using returned fields)
-curl -X POST "<upload_url>" \
-  -F "key=<key>" \
-  -F "file=@deudores_bcra.txt" \
-  ... (other fields from step 1)
-
-# 3. Notify completion
-curl -X POST http://localhost:8001/api/notify-upload \
-  -H "Content-Type: application/json" \
-  -d '{"key": "<key>"}'
-```
-
-### Option B: Copy file into container (REQUIRED for the 6 GB BCRA file)
+### Option A: Artisan command (recommended, REQUIRED for the 6 GB file)
 
 ```bash
 # Copy the file into the importer container
 docker compose cp deudores_bcra.txt importer:/app/storage/app/uploads/
 
-# Process it
+# Process it (streamed line-by-line, never fully loaded in memory)
 docker compose exec importer php artisan bcra:process /app/storage/app/uploads/deudores_bcra.txt
 ```
 
-The command streams a processing summary: total lines, debtors, entities, and duration.
+The command prints a summary: total lines, debtors, entities, and duration.
 
-### Option C: Multipart upload (small files only)
+### Option B: Local path via API
+
+The file must already be reachable from inside the importer container (e.g. copied as in Option A). The endpoint accepts a JSON `path` and queues the job — it does **not** accept a multipart file upload.
 
 ```bash
-curl -X POST http://localhost:8001/upload -F "file=@small_file.txt"
+curl -s -X POST http://localhost:8001/api/upload \
+  -H "Content-Type: application/json" \
+  -d '{"path": "/app/storage/app/uploads/deudores_sample.txt"}' | jq .
+# → 202 { "import_log_id": "...", "status": "queued", ... }
+```
+
+### Option C: Direct-to-S3 pre-signed upload (for browser/client uploads)
+
+```bash
+# 1. Ask for a pre-signed POST. Returns { "upload_url": "...", "fields": { ... } }
+curl -s -X POST http://localhost:8001/api/presign \
+  -H "Content-Type: application/json" \
+  -d '{"filename": "deudores.txt"}' | jq .
+
+# 2. Upload straight to S3 using EVERY field from the response, then the file last.
+#    (The browser UI at /upload does this automatically; by hand you must pass
+#     each returned form field with -F, e.g. -F "key=..." -F "Policy=..." etc.)
+curl -X POST "<upload_url>" \
+  -F "key=<fields.key>" \
+  -F "<each remaining field from fields>" \
+  -F "file=@deudores.txt"
+
+# 3. Notify completion with the same key — this queues processing.
+curl -s -X POST http://localhost:8001/api/notify-upload \
+  -H "Content-Type: application/json" \
+  -d '{"key": "<fields.key>"}' | jq .
 ```
 
 ## Web Interface
@@ -153,11 +160,11 @@ Both pages link to each other, so you can navigate between upload and query with
 
 ### Importer (port 8001)
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/upload` | Upload file via multipart (small files) |
-| `POST` | `/api/presign` | Get S3 pre-signed URL for direct upload |
-| `POST` | `/api/notify-upload` | Notify that S3 upload completed |
+| Method | Path | Body | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/upload` | `{ "path": "<container path>" }` | Queue processing of a file already inside the container |
+| `POST` | `/api/presign` | `{ "filename": "<name>" }` | Get an S3 pre-signed POST (`upload_url` + `fields`) |
+| `POST` | `/api/notify-upload` | `{ "key": "<s3 key>" }` | Notify that an S3 upload completed; queues processing |
 
 ### Query API (port 8000)
 
