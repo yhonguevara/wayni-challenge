@@ -12,24 +12,23 @@ cd /importer
 php artisan migrate --force
 echo "Importer migrations complete"
 
-# Create separate test databases so each suite has isolated schema.
-# Importer tests use wayni_importer_test, query tests use wayni_query_test.
-echo "Ensuring test databases exist..."
+# Create a single shared test database, mirroring the unified production DB.
+# Both suites run serially in separate processes; each RefreshDatabase run
+# rebuilds the full importer-owned schema, so they never collide.
+echo "Ensuring test database exists..."
 php -r '
     $host = "shared-db";
-    $dbs  = ["wayni_importer_test", "wayni_query_test"];
+    $db   = "wayni_test";
     $pdo  = new PDO("pgsql:host=$host;port=5432;dbname=postgres", "wayni", "secret");
-    foreach ($dbs as $db) {
-        $exists = $pdo->query("SELECT 1 FROM pg_database WHERE datname = " . $pdo->quote($db))->fetchColumn();
-        if (!$exists) {
-            $pdo->exec("CREATE DATABASE $db");
-            echo "  $db: created\n";
-        } else {
-            echo "  $db: already exists\n";
-        }
+    $exists = $pdo->query("SELECT 1 FROM pg_database WHERE datname = " . $pdo->quote($db))->fetchColumn();
+    if (!$exists) {
+        $pdo->exec("CREATE DATABASE $db");
+        echo "  $db: created\n";
+    } else {
+        echo "  $db: already exists\n";
     }
 '
-echo "Test databases ready"
+echo "Test database ready"
 
 # Setup LocalStack
 echo "Setting up LocalStack (S3 bucket and SQS queues)..."
