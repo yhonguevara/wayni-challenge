@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Application\Notification;
 
+use App\Infrastructure\Notification\CompositeNotificationSender;
 use App\Infrastructure\Notification\LogNotification;
 use App\Infrastructure\Notification\NotificationFactory;
 use App\Infrastructure\Notification\SqsNotification;
@@ -22,7 +23,7 @@ class NotificationFactoryTest extends TestCase
         $this->assertInstanceOf(LogNotification::class, $sender);
     }
 
-    public function test_from_driver_webhook_returns_webhook_notification(): void
+    public function test_from_driver_webhook_returns_composite_with_log_and_webhook(): void
     {
         // Arrange
         $this->app['config']->set('notification.webhook_url', 'https://example.com/hook');
@@ -32,19 +33,19 @@ class NotificationFactoryTest extends TestCase
         $sender = NotificationFactory::fromDriver('webhook');
 
         // Assert
-        $this->assertInstanceOf(WebhookNotification::class, $sender);
+        $this->assertInstanceOf(CompositeNotificationSender::class, $sender);
 
         // Cleanup
         putenv('NOTIFICATION_WEBHOOK_URL');
     }
 
-    public function test_from_driver_sqs_returns_sqs_notification(): void
+    public function test_from_driver_sqs_returns_composite_with_log_and_sqs(): void
     {
         // Act
         $sender = NotificationFactory::fromDriver('sqs');
 
         // Assert
-        $this->assertInstanceOf(SqsNotification::class, $sender);
+        $this->assertInstanceOf(CompositeNotificationSender::class, $sender);
     }
 
     public function test_from_driver_invalid_throws_exception(): void

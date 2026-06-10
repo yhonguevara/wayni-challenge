@@ -19,12 +19,20 @@ final class NotificationFactory
     /**
      * Create a NotificationSender based on the configured driver.
      *
+     * LogNotification is ALWAYS included for observability.
+     * If a different driver is configured, it's added alongside log.
+     *
      * @throws InvalidArgumentException for unknown driver
      */
     public static function fromDriver(string $driver): NotificationSender
     {
-        return match ($driver) {
-            'log' => new LogNotification(),
+        $logNotification = new LogNotification();
+
+        if ($driver === 'log') {
+            return $logNotification;
+        }
+
+        $additionalSender = match ($driver) {
             'webhook' => new WebhookNotification(
                 webhookUrl: (string) env('NOTIFICATION_WEBHOOK_URL', ''),
             ),
@@ -33,6 +41,11 @@ final class NotificationFactory
                 sprintf('Unknown notification driver: %s. Supported: log, webhook, sqs', $driver)
             ),
         };
+
+        return new CompositeNotificationSender([
+            $logNotification,
+            $additionalSender,
+        ]);
     }
 
     private static function createSqsNotification(): SqsNotification
