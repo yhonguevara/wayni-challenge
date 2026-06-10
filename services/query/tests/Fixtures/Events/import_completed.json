@@ -1,8 +1,0 @@
-{
-    "importId": "import-001",
-    "filename": "deudores.txt",
-    "totalRecords": 155,
-    "validRecords": 150,
-    "invalidRecords": 5,
-    "durationMs": 2500
-}
