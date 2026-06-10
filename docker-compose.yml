@@ -1,32 +1,16 @@
 services:
-  importer-db:
+  shared-db:
     image: postgres:18-alpine
     environment:
-      POSTGRES_DB: wayni_importer
+      POSTGRES_DB: wayni
       POSTGRES_USER: wayni
-      POSTGRES_PASSWORD: ${IMPORTER_DB_PASSWORD:-secret}
+      POSTGRES_PASSWORD: ${SHARED_DB_PASSWORD:-secret}
     volumes:
-      - importer-db-data:/var/lib/postgresql/data
+      - shared-db-data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U wayni -d wayni_importer"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  query-db:
-    image: postgres:18-alpine
-    environment:
-      POSTGRES_DB: wayni_query
-      POSTGRES_USER: wayni
-      POSTGRES_PASSWORD: ${QUERY_DB_PASSWORD:-secret}
-    volumes:
-      - query-db-data:/var/lib/postgresql/data
-    ports:
-      - "5433:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U wayni -d wayni_query"]
+      test: ["CMD-SHELL", "pg_isready -U wayni -d wayni"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -56,9 +40,7 @@ services:
       - ./services/query:/query
       - ./init-container.sh:/init-container.sh
     depends_on:
-      importer-db:
-        condition: service_healthy
-      query-db:
+      shared-db:
         condition: service_healthy
       localstack:
         condition: service_healthy
@@ -86,11 +68,30 @@ services:
       start_period: 40s
     restart: unless-stopped
 
+  # Processes the ProcessBcraFile job: parse the TXT file and publish
+  # DebtorProcessed/EntityProcessed/ImportCompleted events to SQS.
   importer-worker:
     build:
       context: ./services/importer
       dockerfile: Dockerfile
     command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--timeout=3600"]
+    env_file:
+      - ./services/importer/.env
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    volumes:
+      - ./services/importer:/app
+      - /app/vendor
+    restart: unless-stopped
+
+  # Consumes the 3 SQS queues, upserts debtors/entities into the shared DB,
+  # and fires the completion notification once an import is fully persisted.
+  importer-consumer:
+    build:
+      context: ./services/importer
+      dockerfile: Dockerfile
+    command: ["php", "artisan", "events:consume"]
     env_file:
       - ./services/importer/.env
     depends_on:
@@ -123,22 +124,6 @@ services:
       start_period: 40s
     restart: unless-stopped
 
-  query-worker:
-    build:
-      context: ./services/query
-      dockerfile: Dockerfile
-    command: ["php", "artisan", "events:consume"]
-    env_file:
-      - ./services/query/.env
-    depends_on:
-      init:
-        condition: service_completed_successfully
-    volumes:
-      - ./services/query:/app
-      - /app/vendor
-    restart: unless-stopped
-
 volumes:
-  importer-db-data:
-  query-db-data:
+  shared-db-data:
   localstack-data:
