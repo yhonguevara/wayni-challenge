@@ -13,8 +13,9 @@ php artisan migrate --force
 echo "Importer migrations complete"
 
 # Create a single shared test database, mirroring the unified production DB.
-# Both suites run serially in separate processes; each RefreshDatabase run
-# rebuilds the full importer-owned schema, so they never collide.
+# The importer owns ALL schema, so it migrates wayni_test too. The query
+# service has no migrations: its tests run read-only against this schema and
+# wrap each test in a transaction (DatabaseTransactions) that rolls back.
 echo "Ensuring test database exists..."
 php -r '
     $host = "shared-db";
@@ -28,6 +29,10 @@ php -r '
         echo "  $db: already exists\n";
     }
 '
+
+echo "Migrating test database schema (importer-owned)..."
+cd /importer
+DB_DATABASE=wayni_test php artisan migrate:fresh --force
 echo "Test database ready"
 
 # Setup LocalStack
