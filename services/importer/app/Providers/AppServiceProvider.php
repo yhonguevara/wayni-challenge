@@ -6,11 +6,18 @@ namespace App\Providers;
 
 use App\Application\Notification\NotificationSender;
 use App\Application\Orchestrator\ImportOrchestrator;
+use App\Application\Ports\DebtorEventHandler;
+use App\Application\Ports\EntityEventHandler;
 use App\Application\Ports\EventPublisher;
 use App\Application\Ports\FileStorage;
+use App\Application\Ports\ImportCompletedHandler;
 use App\Application\Ports\ImportLogRepository;
+use App\Infrastructure\Console\ConsumeEventsCommand;
 use App\Infrastructure\Console\LocalstackSetupCommand;
 use App\Infrastructure\Console\ProcessBcraFileCommand;
+use App\Infrastructure\Handlers\CompletionSentinelHandler;
+use App\Infrastructure\Handlers\UpsertDebtorHandler;
+use App\Infrastructure\Handlers\UpsertEntityHandler;
 use App\Infrastructure\Messaging\SqsEventPublisher;
 use App\Infrastructure\Notification\NotificationFactory;
 use App\Infrastructure\Persistence\EloquentImportLogRepository;
@@ -30,6 +37,7 @@ class AppServiceProvider extends ServiceProvider
         $this->registerImportOrchestrator();
         $this->registerImportLogRepository();
         $this->registerFileStorage();
+        $this->registerEventHandlers();
     }
 
     /**
@@ -41,6 +49,7 @@ class AppServiceProvider extends ServiceProvider
             $this->commands([
                 LocalstackSetupCommand::class,
                 ProcessBcraFileCommand::class,
+                ConsumeEventsCommand::class,
             ]);
         }
     }
@@ -85,7 +94,6 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(ImportOrchestrator::class, function () {
             return new ImportOrchestrator(
                 eventPublisher: $this->app->make(EventPublisher::class),
-                notificationSender: $this->app->make(NotificationSender::class),
                 importLogRepository: $this->app->make(ImportLogRepository::class),
             );
         });
@@ -104,6 +112,30 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(FileStorage::class, function () {
             return new S3FileStorage();
+        });
+    }
+
+    private function registerEventHandlers(): void
+    {
+        $this->app->bind(DebtorEventHandler::class, function () {
+            return new UpsertDebtorHandler(
+                repository: $this->app->make(ImportLogRepository::class),
+                notificationSender: $this->app->make(NotificationSender::class),
+            );
+        });
+
+        $this->app->bind(EntityEventHandler::class, function () {
+            return new UpsertEntityHandler(
+                repository: $this->app->make(ImportLogRepository::class),
+                notificationSender: $this->app->make(NotificationSender::class),
+            );
+        });
+
+        $this->app->bind(ImportCompletedHandler::class, function () {
+            return new CompletionSentinelHandler(
+                repository: $this->app->make(ImportLogRepository::class),
+                notificationSender: $this->app->make(NotificationSender::class),
+            );
         });
     }
 }

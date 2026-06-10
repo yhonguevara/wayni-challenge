@@ -4,16 +4,22 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Application\Orchestrator;
 
-use App\Application\Notification\NotificationSender;
 use App\Application\Orchestrator\ImportOrchestrator;
 use App\Application\Ports\EventPublisher;
 use App\Application\Ports\ImportLogRepository;
-use App\Domain\Events\ImportCompleted;
 use App\Models\ImportLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
+/**
+ * Unit tests for ImportOrchestrator.
+ *
+ * After WU-07, the orchestrator no longer sends notifications (the sentinel
+ * handler owns that) and no longer requires a NotificationSender dependency.
+ * The orchestrator: parse → transform → publishBatch → publishImportCompleted
+ * → update import_log to 'publishing' status (not 'completed').
+ */
 class ImportOrchestratorTest extends TestCase
 {
     use RefreshDatabase;
@@ -22,16 +28,14 @@ class ImportOrchestratorTest extends TestCase
     {
         // Arrange
         $eventPublisher = $this->createMock(EventPublisher::class);
-        $notificationSender = $this->createMock(NotificationSender::class);
         $importLogRepository = $this->createMock(ImportLogRepository::class);
 
         $eventPublisher->expects($this->once())->method('publishBatch');
         $eventPublisher->expects($this->once())->method('publishImportCompleted');
-        $notificationSender->expects($this->once())->method('send');
         $importLogRepository->method('find')->willReturn(null);
         $importLogRepository->expects($this->once())->method('create')->willReturn(new ImportLog());
 
-        $orchestrator = new ImportOrchestrator($eventPublisher, $notificationSender, $importLogRepository);
+        $orchestrator = new ImportOrchestrator($eventPublisher, $importLogRepository);
         $fixturePath = $this->createFixtureFile();
         $importId = (string) Str::uuid();
 
@@ -45,34 +49,58 @@ class ImportOrchestratorTest extends TestCase
         @unlink($fixturePath);
     }
 
-    public function test_orchestrate_creates_import_log_with_completed_status(): void
+    public function test_orchestrate_does_not_call_notification_sender(): void
     {
-        // Arrange
+        // Arrange — orchestrator takes only EventPublisher + ImportLogRepository
         $eventPublisher = $this->createMock(EventPublisher::class);
-        $notificationSender = $this->createMock(NotificationSender::class);
         $importLogRepository = $this->createMock(ImportLogRepository::class);
 
         $eventPublisher->method('publishBatch');
         $eventPublisher->method('publishImportCompleted');
-        $notificationSender->method('send');
         $importLogRepository->method('find')->willReturn(null);
+        $importLogRepository->method('create')->willReturn(new ImportLog());
+
+        // The orchestrator no longer has a NotificationSender parameter — this
+        // test documents and enforces that the notification path is removed.
+        $orchestrator = new ImportOrchestrator($eventPublisher, $importLogRepository);
+        $fixturePath = $this->createFixtureFile();
+        $importId = (string) Str::uuid();
+
+        // Act — must not throw, must not call any notification logic
+        $result = $orchestrator->orchestrate($fixturePath, $importId);
+
+        // Assert
+        $this->assertInstanceOf(ImportLog::class, $result);
+
+        // Cleanup
+        @unlink($fixturePath);
+    }
+
+    public function test_orchestrate_sets_processing_status_not_completed(): void
+    {
+        // Arrange
+        $eventPublisher = $this->createMock(EventPublisher::class);
+        $importLogRepository = $this->createMock(ImportLogRepository::class);
+
+        $eventPublisher->method('publishBatch');
+        $eventPublisher->method('publishImportCompleted');
+        $importLogRepository->method('find')->willReturn(null);
+
         $importLog = new ImportLog();
-        $importLog->status = 'completed';
+        $importLog->status = 'processing';
         $importLog->started_at = now();
-        $importLog->finished_at = now();
         $importLogRepository->method('create')->willReturn($importLog);
 
-        $orchestrator = new ImportOrchestrator($eventPublisher, $notificationSender, $importLogRepository);
+        $orchestrator = new ImportOrchestrator($eventPublisher, $importLogRepository);
         $fixturePath = $this->createFixtureFile();
         $importId = (string) Str::uuid();
 
         // Act
         $result = $orchestrator->orchestrate($fixturePath, $importId);
 
-        // Assert
-        $this->assertSame('completed', $result->status);
+        // Assert — orchestrator should NOT set status=completed; sentinel owns that
+        $this->assertNotSame('completed', $result->status);
         $this->assertNotNull($result->started_at);
-        $this->assertNotNull($result->finished_at);
 
         // Cleanup
         @unlink($fixturePath);
@@ -82,20 +110,19 @@ class ImportOrchestratorTest extends TestCase
     {
         // Arrange
         $eventPublisher = $this->createMock(EventPublisher::class);
-        $notificationSender = $this->createMock(NotificationSender::class);
         $importLogRepository = $this->createMock(ImportLogRepository::class);
 
         $eventPublisher->method('publishBatch');
         $eventPublisher->method('publishImportCompleted');
-        $notificationSender->method('send');
         $importLogRepository->method('find')->willReturn(null);
+
         $importLog = new ImportLog();
-        $importLog->status = 'completed';
+        $importLog->status = 'processing';
         $importLog->valid_records = 2;
         $importLog->duration = 100;
         $importLogRepository->method('create')->willReturn($importLog);
 
-        $orchestrator = new ImportOrchestrator($eventPublisher, $notificationSender, $importLogRepository);
+        $orchestrator = new ImportOrchestrator($eventPublisher, $importLogRepository);
         $fixturePath = $this->createFixtureFile();
         $importId = (string) Str::uuid();
 
@@ -103,7 +130,6 @@ class ImportOrchestratorTest extends TestCase
         $result = $orchestrator->orchestrate($fixturePath, $importId);
 
         // Assert
-        $this->assertSame('completed', $result->status);
         $this->assertNotNull($result->valid_records);
         $this->assertNotNull($result->duration);
 
@@ -115,11 +141,11 @@ class ImportOrchestratorTest extends TestCase
     {
         // Arrange
         $eventPublisher = $this->createMock(EventPublisher::class);
-        $notificationSender = $this->createMock(NotificationSender::class);
         $importLogRepository = $this->createMock(ImportLogRepository::class);
 
         $eventPublisher->method('publishBatch')->willThrowException(new \RuntimeException('SQS error'));
         $importLogRepository->method('find')->willReturn(null);
+
         $importLog = new ImportLog();
         $importLog->status = 'failed';
         $importLog->error_message = 'SQS error';
@@ -127,7 +153,7 @@ class ImportOrchestratorTest extends TestCase
         $importLogRepository->expects($this->once())->method('updateStatus')
             ->with($this->anything(), 'failed', $this->arrayHasKey('error_message'));
 
-        $orchestrator = new ImportOrchestrator($eventPublisher, $notificationSender, $importLogRepository);
+        $orchestrator = new ImportOrchestrator($eventPublisher, $importLogRepository);
         $fixturePath = $this->createFixtureFile();
         $importId = (string) Str::uuid();
 

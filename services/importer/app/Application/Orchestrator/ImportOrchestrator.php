@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Application\Orchestrator;
 
-use App\Application\Notification\NotificationSender;
 use App\Application\Parser\BcraFileParser;
 use App\Application\Ports\EventPublisher;
 use App\Application\Ports\ImportLogRepository;
@@ -18,14 +17,17 @@ use App\Models\ImportLog;
 /**
  * Coordinates the BCRA file processing pipeline.
  *
- * Orchestrates: parse → transform → publish events → notify → update log.
- * This is a thin Application-layer coordinator — no business logic, only sequencing.
+ * Responsibilities: parse → transform → publish DebtorProcessed/EntityProcessed
+ * batch → publish ImportCompleted → update import_log status to 'publishing'.
+ *
+ * Notification is NO LONGER sent here. The importer's ConsumeEventsCommand
+ * drives the CompletionSentinelHandler which fires the notification exactly once
+ * after all records are persisted. This ensures "notified" means "persisted".
  */
 final class ImportOrchestrator
 {
     public function __construct(
         private readonly EventPublisher $eventPublisher,
-        private readonly NotificationSender $notificationSender,
         private readonly ImportLogRepository $importLogRepository,
     ) {}
 
@@ -43,9 +45,9 @@ final class ImportOrchestrator
 
         if ($importLog === null) {
             $importLog = $this->importLogRepository->create([
-                'id' => $importId,
-                'filename' => basename($filePath),
-                'status' => 'processing',
+                'id'         => $importId,
+                'filename'   => basename($filePath),
+                'status'     => 'processing',
                 'started_at' => now(),
             ]);
         } else {
@@ -63,14 +65,14 @@ final class ImportOrchestrator
             $transformer = new BcraDataTransformer($records);
             $result = $transformer->transform();
 
-            $debtors = $result['debtors'];
+            $debtors  = $result['debtors'];
             $entities = $result['entities'];
 
             // 4. Build and publish domain events
             $events = $this->buildEvents($debtors, $entities, $importId);
             $this->eventPublisher->publishBatch($events);
 
-            // 5. Create and publish ImportCompleted event
+            // 5. Build and publish ImportCompleted event
             $durationMs = (int) ((microtime(true) - $startTime) * 1000);
             $importCompleted = new ImportCompleted(
                 importId: $importId,
@@ -83,23 +85,20 @@ final class ImportOrchestrator
 
             $this->eventPublisher->publishImportCompleted($importCompleted);
 
-            // 6. Send notification
-            $this->notificationSender->send($importCompleted);
-
-            // 7. Update ImportLog (status: completed)
-            $this->importLogRepository->updateStatus($importId, 'completed', [
-                'finished_at' => now(),
-                'total_records' => $debtors->count() + $entities->count(),
-                'valid_records' => $debtors->count(),
+            // 6. Update ImportLog — record stats and mark as 'publishing'.
+            //    The 'completed' status is owned by the sentinel handler after
+            //    all records are persisted. Do NOT set status='completed' here.
+            $this->importLogRepository->updateStatus($importId, 'publishing', [
+                'total_records'  => $debtors->count() + $entities->count(),
+                'valid_records'  => $debtors->count(),
                 'invalid_records' => 0,
-                'duration' => $durationMs,
+                'duration'       => $durationMs,
             ]);
 
             return $importLog;
         } catch (\Throwable $e) {
-            // Update ImportLog (status: failed, error_message)
             $this->importLogRepository->updateStatus($importId, 'failed', [
-                'finished_at' => now(),
+                'finished_at'   => now(),
                 'error_message' => $e->getMessage(),
             ]);
 
@@ -118,7 +117,7 @@ final class ImportOrchestrator
         string $importId,
     ): array {
         $events = [];
-        $now = new \DateTimeImmutable();
+        $now    = new \DateTimeImmutable();
 
         foreach ($debtors as $debtor) {
             $events[] = new DebtorProcessed(
