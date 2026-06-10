@@ -18,6 +18,6 @@ final class LogNotification implements NotificationSender
 {
     public function send(ImportCompleted $event): void
     {
-        Log::info('Import completed', $event->toArray());
+        Log::info('Import completed', $event->toLogContext());
     }
 }

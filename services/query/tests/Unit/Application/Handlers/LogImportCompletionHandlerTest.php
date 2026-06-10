@@ -26,7 +26,7 @@ class LogImportCompletionHandlerTest extends TestCase
 
         Log::shouldReceive('info')
             ->once()
-            ->with('Import completed', $event->toArray());
+            ->with('Import completed', $event->toLogContext());
 
         // Act
         $handler->handle($event);

@@ -18,6 +18,7 @@ class WebhookNotificationTest extends TestCase
         $url = 'https://example.com/webhook';
         $notification = new WebhookNotification($url);
         $event = new ImportCompleted(
+            importId: 'import-123',
             filename: 'deudores.txt',
             totalDebtors: 150,
             totalEntities: 5,
@@ -46,6 +47,7 @@ class WebhookNotificationTest extends TestCase
         $url = 'https://example.com/webhook';
         $notification = new WebhookNotification($url);
         $event = new ImportCompleted(
+            importId: 'import-123',
             filename: 'deudores.txt',
             totalDebtors: 150,
             totalEntities: 5,
@@ -74,6 +76,7 @@ class WebhookNotificationTest extends TestCase
         $url = 'https://example.com/webhook';
         $notification = new WebhookNotification($url);
         $event = new ImportCompleted(
+            importId: 'import-123',
             filename: 'deudores.txt',
             totalDebtors: 150,
             totalEntities: 5,

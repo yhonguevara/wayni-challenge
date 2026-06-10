@@ -16,6 +16,7 @@ class LogNotificationTest extends TestCase
         // Arrange
         $notification = new LogNotification();
         $event = new ImportCompleted(
+            importId: 'import-123',
             filename: 'deudores.txt',
             totalDebtors: 150,
             totalEntities: 5,
@@ -26,11 +27,12 @@ class LogNotificationTest extends TestCase
         Log::shouldReceive('info')
             ->once()
             ->with('Import completed', [
+                'import_id' => 'import-123',
                 'filename' => 'deudores.txt',
-                'totalDebtors' => 150,
-                'totalEntities' => 5,
-                'durationMs' => 2500,
-                'completedAt' => '2026-06-08T12:00:00Z',
+                'total_debtors' => 150,
+                'total_entities' => 5,
+                'duration_ms' => 2500,
+                'completed_at' => '2026-06-08T12:00:00Z',
             ]);
 
         // Act
@@ -44,6 +46,7 @@ class LogNotificationTest extends TestCase
         // Arrange
         $notification = new LogNotification();
         $event = new ImportCompleted(
+            importId: 'import-123',
             filename: 'test.txt',
             totalDebtors: 10,
             totalEntities: 2,

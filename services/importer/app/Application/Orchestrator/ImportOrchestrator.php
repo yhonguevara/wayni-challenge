@@ -73,6 +73,7 @@ final class ImportOrchestrator
             // 5. Create and publish ImportCompleted event
             $durationMs = (int) ((microtime(true) - $startTime) * 1000);
             $importCompleted = new ImportCompleted(
+                importId: $importId,
                 filename: basename($filePath),
                 totalDebtors: $debtors->count(),
                 totalEntities: $entities->count(),

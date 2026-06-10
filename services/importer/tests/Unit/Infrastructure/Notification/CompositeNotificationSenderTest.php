@@ -15,6 +15,7 @@ class CompositeNotificationSenderTest extends TestCase
     {
         // Arrange
         $event = new ImportCompleted(
+            importId: 'import-123',
             filename: 'test.txt',
             totalDebtors: 95,
             totalEntities: 5,
@@ -42,6 +43,7 @@ class CompositeNotificationSenderTest extends TestCase
     {
         // Arrange
         $event = new ImportCompleted(
+            importId: 'import-123',
             filename: 'test.txt',
             totalDebtors: 95,
             totalEntities: 5,

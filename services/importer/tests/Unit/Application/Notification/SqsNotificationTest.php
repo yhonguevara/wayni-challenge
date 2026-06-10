@@ -29,6 +29,7 @@ class SqsNotificationTest extends TestCase
 
         $notification = new SqsNotification($client, $queueUrl);
         $event = new ImportCompleted(
+            importId: 'import-123',
             filename: 'deudores.txt',
             totalDebtors: 150,
             totalEntities: 5,
@@ -61,6 +62,7 @@ class SqsNotificationTest extends TestCase
 
         $notification = new SqsNotification($client, $queueUrl);
         $event = new ImportCompleted(
+            importId: 'import-123',
             filename: 'deudores.txt',
             totalDebtors: 150,
             totalEntities: 5,

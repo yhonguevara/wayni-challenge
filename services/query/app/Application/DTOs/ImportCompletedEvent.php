@@ -38,4 +38,22 @@ final readonly class ImportCompletedEvent
             'durationMs' => $this->durationMs,
         ];
     }
+
+    /**
+     * Snake_case representation for structured logging.
+     *
+     * Distinct from toArray(), which mirrors the camelCase SQS wire format.
+     * Logs use snake_case across both services.
+     */
+    public function toLogContext(): array
+    {
+        return [
+            'import_id' => $this->importId,
+            'filename' => $this->filename,
+            'total_records' => $this->totalRecords,
+            'valid_records' => $this->validRecords,
+            'invalid_records' => $this->invalidRecords,
+            'duration_ms' => $this->durationMs,
+        ];
+    }
 }

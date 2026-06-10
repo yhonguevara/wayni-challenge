@@ -81,8 +81,8 @@ final class ProcessBcraFile implements ShouldQueue
     public function failed(\Throwable $exception): void
     {
         Log::error('ProcessBcraFile job failed', [
-            'importId' => $this->importId,
-            'fileSource' => $this->fileSource,
+            'import_id' => $this->importId,
+            'file_source' => $this->fileSource,
             'error' => $exception->getMessage(),
         ]);
 

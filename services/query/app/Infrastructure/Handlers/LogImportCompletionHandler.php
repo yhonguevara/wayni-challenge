@@ -31,6 +31,6 @@ final class LogImportCompletionHandler implements ShouldQueue, ImportCompletedHa
 
     public function handle(ImportCompletedEvent $event): void
     {
-        Log::info('Import completed', $event->toArray());
+        Log::info('Import completed', $event->toLogContext());
     }
 }
