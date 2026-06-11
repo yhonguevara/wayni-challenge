@@ -3,7 +3,7 @@
 [![PHP 8.5](https://img.shields.io/badge/PHP-8.5-777BB4)](https://php.net)
 [![Laravel 13](https://img.shields.io/badge/Laravel-13-FF2D20)](https://laravel.com)
 [![PostgreSQL 18](https://img.shields.io/badge/PostgreSQL-18-336791)](https://postgresql.org)
-[![Tests](https://img.shields.io/badge/Tests-189%20passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/Tests-141%20passing-brightgreen)]()
 
 Microservices system that processes the BCRA (Central Bank of Argentina) debtor registry file (~6 GB TXT). Parses, transforms, aggregates, and persists data with event-driven CQRS architecture.
 
@@ -14,19 +14,20 @@ Microservices system that processes the BCRA (Central Bank of Argentina) debtor 
 
   deudores_bcra.txt
   ────────────────►  ┌──────────────┐
-  POST /upload       │   Importer   │  upload UI + API
-  or artisan cmd     │  (port 8001) │  dispatches a queue job
-                     └──────┬───────┘
-                            │ queue job
-                     ┌──────▼─────────┐
-                     │ Importer Worker│  parses the TXT, aggregates,
-                     │  (queue:work)  │  publishes domain events
-                     └──────┬─────────┘
-                            │ SQS (3 queues, via LocalStack)
-                     ┌──────▼───────────┐
-                     │ Importer Consumer│  upserts rows, counts,
-                     │ (events:consume) │  notifies once when done
-                     └──────┬───────────┘
+  POST /api/upload   │   Importer   │  upload UI + API
+  /notify-upload     │  (port 8001) │  dispatches a queue job
+  or artisan cmd     └──────┬───────┘
+                            │ queue job (ProcessBcraFile)
+                     ┌──────▼───────────────────────────────┐
+                     │ Importer Worker (queue:work)          │
+                     │  ELT pipeline:                        │
+                     │  1. stream-parse the TXT (O(1) mem)   │
+                     │  2. COPY rows → per-import staging     │
+                     │  3. GROUP BY → debtors + entities     │
+                     │     (MAX situation by severity, SUM)  │
+                     │  4. drop staging                       │
+                     │  5. fire completion notification       │
+                     └──────┬─────────────────────────────────┘
                             │ writes
                      ┌──────▼───────────┐  reads   ┌──────────────┐
                      │    Shared DB     │◄─────────│  Query API   │  panel UI + REST
@@ -34,25 +35,27 @@ Microservices system that processes the BCRA (Central Bank of Argentina) debtor 
                      └──────────────────┘          └──────────────┘
 
   Importer is the ONLY writer. Query only reads the same database.
+  SQS/webhook/log are used for the completion NOTIFICATION, not for moving data.
 ```
 
 ### Services
 
 | Service | Role | Command |
 |---------|------|---------|
-| **Importer** | HTTP API + upload UI — receives files, dispatches processing jobs | `php artisan serve` |
-| **Importer Worker** | Processes Laravel queue jobs — parses TXT, publishes events to SQS | `php artisan queue:work` |
-| **Importer Consumer** | Consumes SQS events — upserts debtors/entities, fires completion notification | `php artisan events:consume` |
+| **Importer** | HTTP API + upload UI — receives files, dispatches the processing job | `php artisan serve` |
+| **Importer Worker** | Runs the ELT pipeline: stream-parse → COPY to staging → GROUP BY aggregate → notify | `php artisan queue:work` |
 | **Query API** | Read-only REST API + query panel UI — queries debtors and entities | `php artisan serve` |
 | **Shared DB** | Single PostgreSQL instance — importer writes, query reads | — |
-| **LocalStack** | Simulates AWS SQS and S3 locally | — |
+| **LocalStack** | Simulates AWS S3 (file backup) and SQS (notification driver) | — |
 
 ### Key Design Decisions
 
-- **Shared database** — one PostgreSQL instance; importer is the sole writer, query is read-only
-- **Completion sentinel** — notification fires exactly once, only after ALL records are persisted (not just enqueued)
-- **Processed-events ledger** — idempotent increments under SQS at-least-once delivery
-- **S3 direct upload** — multi-GB files go straight to S3 via pre-signed URL, never through PHP
+- **ELT, not row-by-row** — the parser streams the file and bulk-loads raw rows into a per-import staging table via Postgres `COPY`; the database then aggregates (`GROUP BY`) into `debtors`/`entities` in one pass. This is what makes the 5.6 GB / 34 M-line file processable (~22 min) with flat memory — a per-row insert path was orders of magnitude too slow.
+- **Severity-correct aggregation** — `MAX(situation)` is computed by BCRA risk severity (`01<11<21<23<03<04<05`), not alphabetically, via a rank CASE + array lookup. Plain `MAX`/`GREATEST` on the code string would be wrong (e.g. `05` Irrecuperable must beat `23`).
+- **Shared database** — one PostgreSQL instance; importer is the sole writer, query is read-only.
+- **Streaming everywhere** — the parser, the S3 download (8 MiB chunks), and the COPY load are all streamed, so memory stays flat regardless of file size.
+- **Latest file wins** — aggregation truncates `debtors`/`entities` first, so re-importing replaces (does not accumulate) per RN-03.
+- **S3 as backup** — pre-signed uploads land the original file in S3; the worker streams it down to process and leaves the S3 object in place as a backup.
 
 ## Tech Stack
 
@@ -198,14 +201,14 @@ curl -s http://localhost:8000/api/entities/00011 | jq .
 Run the suites with `composer test` — **not** `php artisan test` directly:
 
 ```bash
-# Importer: 173 tests (unit + feature + integration)
+# Importer: 125 tests (unit + feature + integration)
 docker compose exec importer composer test
 
 # Query API: 16 tests
 docker compose exec query composer test
 ```
 
-**Total: 189 tests, 452 assertions, 0 failures.**
+**Total: 141 tests, 0 failures.**
 
 > **Why `composer test` and not `php artisan test`?** Both services share one
 > database host, with `wayni` for runtime and `wayni_test` for tests. The
@@ -217,10 +220,11 @@ docker compose exec query composer test
 Tests cover:
 - Domain value objects and business rules (situation severity, amount parsing, CUIT validation)
 - File parser (ISO-8859-1 encoding, fixed-width positions, edge cases)
-- Data transformer (aggregation by CUIT/entity, MAX situation, SUM loans)
-- Event handlers (upsert idempotency, completion sentinel, exactly-once notification)
-- SQS integration (publish/consume round-trip against LocalStack)
-- API controllers (CRUD, pagination, validation, 404 handling)
+- StagingLoader (chunked COPY load, checkpoint/resume, orphan GC) against a real DB
+- Aggregator (severity-correct `MAX(situation)` incl. cross-group cases like `05` beating `23`, `SUM(loans)`, truncate-first) against a real DB
+- ImportOrchestrator ELT flow (load → aggregate → drop staging → notify, status transitions, failure path)
+- Notification drivers (log / webhook / SQS) and the completion payload
+- API controllers (pagination, validation, 404 handling)
 
 ## Project Structure
 
@@ -229,13 +233,13 @@ wayni-challenge/
 ├── services/
 │   ├── importer/                  # Write-side service (sole schema owner)
 │   │   ├── app/
-│   │   │   ├── Domain/            # Entities, Value Objects, Events
-│   │   │   ├── Application/       # Use Cases, Jobs, DTOs, Ports, Notification
-│   │   │   ├── Infrastructure/    # Eloquent, SQS, S3, File Parser, Handlers
-│   │   │   └── Http/              # Controllers, API Resources
+│   │   │   ├── Domain/            # Value Objects (Cuit, Situation, Amount), events
+│   │   │   ├── Application/       # Orchestrator, Jobs, Parser, Ports, Notification
+│   │   │   ├── Infrastructure/    # StagingLoader, Aggregator, S3 storage, notifications
+│   │   │   └── Http/              # Controllers (upload/presign), API Resources
 │   │   ├── database/migrations/   # ALL migrations (sole schema owner)
 │   │   ├── resources/views/       # Upload UI
-│   │   ├── tests/                 # 173 tests
+│   │   ├── tests/                 # 125 tests
 │   │   ├── Dockerfile
 │   │   └── .env
 │   └── query/                     # Read-only service (no migrations)
@@ -250,7 +254,7 @@ wayni-challenge/
 │   └── template.yaml              # AWS SAM template
 ├── docs/
 │   └── architecture/              # Detailed architecture docs
-├── docker-compose.yml             # 7 services: shared-db, localstack, init, importer, importer-worker, importer-consumer, query
+├── docker-compose.yml             # 6 services: shared-db, localstack, init, importer, importer-worker, query
 ├── init-container.sh              # Bootstrap: migrations + test DB + LocalStack setup
 └── README.md
 ```
@@ -258,16 +262,23 @@ wayni-challenge/
 ## Data Flow
 
 ```
-1. File arrives (artisan command or HTTP upload)
-2. Importer Worker parses TXT line-by-line (streaming, no full-file load)
-3. Transformer aggregates in-memory: MAX situation per CUIT, SUM loans per CUIT/entity
-4. Events published to SQS: DebtorProcessed, EntityProcessed, ImportCompleted
-5. Importer Consumer processes events:
-   - Upserts debtor/entity rows (idempotent via processed_events ledger)
-   - Increments persisted counter
-   - When persisted == expected: fires completion notification (exactly once)
-6. Query API reads from the same database (read-only, no consumer needed)
+1. File arrives (artisan command, local-path API, or pre-signed S3 upload)
+2. ProcessBcraFile job runs the ELT pipeline in the importer worker:
+   a. Resolve the source — local path, or stream-download the S3 object to a temp file
+   b. Stream-parse the TXT line by line (171-char fixed width; O(1) memory)
+   c. COPY the valid rows into a per-import UNLOGGED staging table, in 5000-row
+      chunks, checkpointing last_loaded_line (crash-safe resume)
+   d. Aggregate with ONE GROUP BY per target table:
+      - debtors:  MAX(situation) by severity rank + SUM(loans), keyed by CUIT
+      - entities: SUM(loans), keyed by entity code
+      (debtors/entities are truncated first — "latest file wins")
+   e. Drop the staging table
+   f. Fire the completion notification (log / webhook / SQS driver)
+3. Query API reads debtors/entities from the same database (read-only)
 ```
+
+Memory stays flat throughout (parse, S3 download, and COPY are all streamed); the
+database does the heavy aggregation in a single pass.
 
 ## Troubleshooting
 
