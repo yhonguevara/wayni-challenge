@@ -24,6 +24,14 @@ class ProcessBcraFileTest extends TestCase
         $this->assertSame([10, 30, 90], $job->backoff);
     }
 
+    public function test_job_has_zero_timeout_for_large_file_support(): void
+    {
+        // Publishing 60 M+ events for the 5.6 GB file must not be killed by a timeout
+        $job = new ProcessBcraFile('/tmp/test.txt', (string) Str::uuid());
+
+        $this->assertSame(0, $job->timeout, "timeout must be 0 to allow unlimited execution time");
+    }
+
     public function test_job_implements_should_queue(): void
     {
         // Arrange & Act

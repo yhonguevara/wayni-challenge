@@ -74,7 +74,7 @@ final class BcraFileParser
                 }
 
                 try {
-                    $dto = $this->parseLine($line);
+                    $dto = $this->parseLine($line, $lineNumber);
 
                     // RN-03: Filter non-CUIT identification types
                     if ($dto->identificationType !== self::IDENTIFICATION_TYPE_CUIT) {
@@ -105,7 +105,7 @@ final class BcraFileParser
      * Field positions are 0-indexed for substr(), matching leame-deudores.md
      * positions minus 1 (doc is 1-indexed).
      */
-    private function parseLine(string $line): BcraRecordDTO
+    private function parseLine(string $line, int $lineNumber = 0): BcraRecordDTO
     {
         return new BcraRecordDTO(
             entityCode: substr($line, 0, 5),           // pos 1-5
@@ -132,6 +132,7 @@ final class BcraFileParser
             legalSituation: substr($line, 165, 1),      // pos 166
             technicalIrrecoverable: substr($line, 166, 1), // pos 167
             daysOverdue: (int) substr($line, 167, 4),   // pos 168-171
+            lineNumber: $lineNumber,
         );
     }
 

@@ -23,6 +23,7 @@ class EntityProcessedTest extends TestCase
             totalLoans: $totalLoans,
             importId: $importId,
             processedAt: $processedAt,
+            lineNumber: 17,
         );
 
         // Assert
@@ -30,6 +31,7 @@ class EntityProcessedTest extends TestCase
         $this->assertSame(1500.5, $event->totalLoans);
         $this->assertSame('import-123', $event->importId);
         $this->assertSame($processedAt, $event->processedAt);
+        $this->assertSame(17, $event->lineNumber);
     }
 
     public function test_properties_are_readonly(): void
@@ -42,6 +44,7 @@ class EntityProcessedTest extends TestCase
             totalLoans: 1500.5,
             importId: 'import-123',
             processedAt: $processedAt,
+            lineNumber: 3,
         );
 
         // Act & Assert - readonly properties cannot be modified
@@ -49,6 +52,7 @@ class EntityProcessedTest extends TestCase
         $this->assertSame(1500.5, $event->totalLoans);
         $this->assertSame('import-123', $event->importId);
         $this->assertSame($processedAt, $event->processedAt);
+        $this->assertSame(3, $event->lineNumber);
     }
 
     public function test_to_array_returns_correct_payload(): void
@@ -61,6 +65,7 @@ class EntityProcessedTest extends TestCase
             totalLoans: 1500.5,
             importId: 'import-123',
             processedAt: $processedAt,
+            lineNumber: 55,
         );
 
         // Act
@@ -72,6 +77,20 @@ class EntityProcessedTest extends TestCase
         $this->assertSame(1500.5, $array['totalLoans']);
         $this->assertSame('import-123', $array['importId']);
         $this->assertSame('2026-06-08T12:00:00Z', $array['occurredAt']);
+        $this->assertSame(55, $array['lineNumber']);
+    }
+
+    public function test_line_number_defaults_to_zero(): void
+    {
+        // Act — lineNumber not provided, should default
+        $event = new EntityProcessed(
+            entityCode: '00001',
+            totalLoans: 500.0,
+            importId: 'import-123',
+        );
+
+        // Assert
+        $this->assertSame(0, $event->lineNumber);
     }
 
     public function test_occurred_at_returns_processed_at(): void
@@ -84,6 +103,7 @@ class EntityProcessedTest extends TestCase
             totalLoans: 1500.5,
             importId: 'import-123',
             processedAt: $processedAt,
+            lineNumber: 8,
         );
 
         // Act
@@ -103,6 +123,7 @@ class EntityProcessedTest extends TestCase
             entityCode: '00001',
             totalLoans: 1500.5,
             importId: 'import-123',
+            lineNumber: 2,
         );
 
         $after = new \DateTimeImmutable();

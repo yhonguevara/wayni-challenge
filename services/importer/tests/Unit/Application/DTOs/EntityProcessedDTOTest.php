@@ -21,11 +21,13 @@ class EntityProcessedDTOTest extends TestCase
             importId: 'import-abc-123',
             entityCode: 'BCO01',
             totalLoans: 50000.00,
+            lineNumber: 13,
         );
 
         $this->assertSame('import-abc-123', $dto->importId);
         $this->assertSame('BCO01', $dto->entityCode);
         $this->assertSame(50000.00, $dto->totalLoans);
+        $this->assertSame(13, $dto->lineNumber);
     }
 
     public function test_from_array_maps_camel_case_wire_format(): void
@@ -34,6 +36,7 @@ class EntityProcessedDTOTest extends TestCase
             'importId'   => 'import-xyz-999',
             'entityCode' => '00042',
             'totalLoans' => 75000.00,
+            'lineNumber' => 88,
         ];
 
         $dto = EntityProcessedDTO::fromArray($payload);
@@ -41,6 +44,7 @@ class EntityProcessedDTOTest extends TestCase
         $this->assertSame('import-xyz-999', $dto->importId);
         $this->assertSame('00042', $dto->entityCode);
         $this->assertSame(75000.00, $dto->totalLoans);
+        $this->assertSame(88, $dto->lineNumber);
     }
 
     public function test_from_array_casts_total_loans_to_float(): void
@@ -53,5 +57,17 @@ class EntityProcessedDTOTest extends TestCase
 
         $this->assertIsFloat($dto->totalLoans);
         $this->assertSame(12345.67, $dto->totalLoans);
+    }
+
+    public function test_line_number_defaults_to_zero_for_backward_compatibility(): void
+    {
+        // fromArray without lineNumber key (old message format) should default to 0
+        $dto = EntityProcessedDTO::fromArray([
+            'importId'   => 'import-001',
+            'entityCode' => 'BCO01',
+            'totalLoans' => 5000.0,
+        ]);
+
+        $this->assertSame(0, $dto->lineNumber);
     }
 }

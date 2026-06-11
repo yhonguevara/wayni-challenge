@@ -55,6 +55,28 @@ class BcraFileParserTest extends TestCase
         $this->assertSame(0, $first->daysOverdue);
     }
 
+    public function test_parse_sets_line_number_on_each_record(): void
+    {
+        // Arrange — use the 10-line fixture; all 10 pass filtering
+        $parser = new BcraFileParser($this->fixturesPath() . 'bcra_10_lines.txt');
+
+        // Act
+        $records = $parser->parse()->values()->all();
+
+        // Assert — lineNumber must be positive (1-indexed source line), distinct, monotonically increasing
+        $this->assertCount(10, $records);
+
+        // Every record must have a positive lineNumber
+        foreach ($records as $record) {
+            $this->assertGreaterThan(0, $record->lineNumber);
+        }
+
+        // lineNumbers must be strictly increasing (each record is a different file line)
+        for ($i = 1; $i < count($records); $i++) {
+            $this->assertGreaterThan($records[$i - 1]->lineNumber, $records[$i]->lineNumber);
+        }
+    }
+
     public function test_parse_rn04_filters_non_11_identification(): void
     {
         // Arrange

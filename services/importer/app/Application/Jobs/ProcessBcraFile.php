@@ -41,6 +41,13 @@ final class ProcessBcraFile implements ShouldQueue
     public array $backoff = [10, 30, 90];
 
     /**
+     * Disable the job timeout — publishing 60 M+ SQS messages for a 5.6 GB file
+     * can take hours. A non-zero timeout would kill the job prematurely.
+     * The importer-worker container already uses --timeout=0 in docker-compose.yml.
+     */
+    public int $timeout = 0;
+
+    /**
      * Create a new job instance.
      *
      * @param string $fileSource Local filesystem path OR S3 key

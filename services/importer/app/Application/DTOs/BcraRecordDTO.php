@@ -38,6 +38,9 @@ final readonly class BcraRecordDTO
      * @param string $technicalIrrecoverable Field 23: Irrecuperables por disposición técnica (pos 167, 1 char)
      * @param int    $daysOverdue          Field 24: Días de atraso (pos 168-171, 4 chars)
      */
+    /**
+     * @param int    $lineNumber  Source line number in the file (1-indexed) for per-line event identity
+     */
     public function __construct(
         public string $entityCode,
         public string $infoDate,
@@ -63,5 +66,6 @@ final readonly class BcraRecordDTO
         public string $legalSituation,
         public string $technicalIrrecoverable,
         public int $daysOverdue,
+        public int $lineNumber = 0,
     ) {}
 }

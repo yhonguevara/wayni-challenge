@@ -16,6 +16,7 @@ final readonly class EntityProcessedDTO
         public string $importId,
         public string $entityCode,
         public float $totalLoans,
+        public int $lineNumber = 0,
     ) {}
 
     /**
@@ -29,6 +30,7 @@ final readonly class EntityProcessedDTO
             importId: $data['importId'],
             entityCode: $data['entityCode'],
             totalLoans: (float) $data['totalLoans'],
+            lineNumber: isset($data['lineNumber']) ? (int) $data['lineNumber'] : 0,
         );
     }
 

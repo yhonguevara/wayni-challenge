@@ -23,6 +23,7 @@ class DebtorProcessedDTOTest extends TestCase
             identificationNumber: '20345123458',
             maxSituation: '03',
             totalLoans: 1500.75,
+            lineNumber: 42,
         );
 
         // Assert
@@ -30,6 +31,7 @@ class DebtorProcessedDTOTest extends TestCase
         $this->assertSame('20345123458', $dto->identificationNumber);
         $this->assertSame('03', $dto->maxSituation);
         $this->assertSame(1500.75, $dto->totalLoans);
+        $this->assertSame(42, $dto->lineNumber);
     }
 
     public function test_from_array_maps_camel_case_wire_format(): void
@@ -40,6 +42,7 @@ class DebtorProcessedDTOTest extends TestCase
             'identificationNumber' => '27123456789',
             'maxSituation'         => '05',
             'totalLoans'           => 2500.00,
+            'lineNumber'           => 77,
         ];
 
         // Act
@@ -50,6 +53,20 @@ class DebtorProcessedDTOTest extends TestCase
         $this->assertSame('27123456789', $dto->identificationNumber);
         $this->assertSame('05', $dto->maxSituation);
         $this->assertSame(2500.00, $dto->totalLoans);
+        $this->assertSame(77, $dto->lineNumber);
+    }
+
+    public function test_line_number_defaults_to_zero_for_backward_compatibility(): void
+    {
+        // fromArray without lineNumber key (old message format) should default to 0
+        $dto = DebtorProcessedDTO::fromArray([
+            'importId'             => 'import-001',
+            'identificationNumber' => '20345123458',
+            'maxSituation'         => '01',
+            'totalLoans'           => 1000.0,
+        ]);
+
+        $this->assertSame(0, $dto->lineNumber);
     }
 
     public function test_from_array_casts_total_loans_to_float(): void

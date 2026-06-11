@@ -17,6 +17,7 @@ final readonly class DebtorProcessedDTO
         public string $identificationNumber,
         public string $maxSituation,
         public float $totalLoans,
+        public int $lineNumber = 0,
     ) {}
 
     /**
@@ -31,6 +32,7 @@ final readonly class DebtorProcessedDTO
             identificationNumber: $data['identificationNumber'],
             maxSituation: $data['maxSituation'],
             totalLoans: (float) $data['totalLoans'],
+            lineNumber: isset($data['lineNumber']) ? (int) $data['lineNumber'] : 0,
         );
     }
 
