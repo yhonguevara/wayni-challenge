@@ -93,7 +93,7 @@ class MigrationSchemaTest extends TestCase
     }
 
     // -----------------------------------------------------------------------
-    // import_logs completion counters
+    // import_logs columns
     // -----------------------------------------------------------------------
 
     public function test_import_logs_has_completion_counter_columns(): void
@@ -102,6 +102,25 @@ class MigrationSchemaTest extends TestCase
             'expected_records',
             'persisted_records',
         ]));
+    }
+
+    public function test_import_logs_has_last_loaded_line_column(): void
+    {
+        $this->assertTrue(Schema::hasColumn('import_logs', 'last_loaded_line'));
+    }
+
+    public function test_import_logs_last_loaded_line_default_is_zero(): void
+    {
+        // Insert a row without specifying last_loaded_line — the column default must be 0.
+        $importId = \Str::uuid()->toString();
+        \DB::table('import_logs')->insert([
+            'id'       => $importId,
+            'filename' => 'test.txt',
+            'status'   => 'pending',
+        ]);
+
+        $row = \DB::table('import_logs')->where('id', $importId)->first();
+        $this->assertSame(0, (int) $row->last_loaded_line);
     }
 
     // -----------------------------------------------------------------------

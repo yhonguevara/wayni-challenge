@@ -20,7 +20,9 @@ use App\Infrastructure\Handlers\UpsertDebtorHandler;
 use App\Infrastructure\Handlers\UpsertEntityHandler;
 use App\Infrastructure\Messaging\SqsEventPublisher;
 use App\Infrastructure\Notification\NotificationFactory;
+use App\Infrastructure\Persistence\Aggregator;
 use App\Infrastructure\Persistence\EloquentImportLogRepository;
+use App\Infrastructure\Persistence\StagingLoader;
 use App\Infrastructure\Storage\S3FileStorage;
 use Aws\Sqs\SqsClient;
 use Illuminate\Support\ServiceProvider;
@@ -34,10 +36,12 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->registerEventPublisher();
         $this->registerNotificationSender();
-        $this->registerImportOrchestrator();
         $this->registerImportLogRepository();
         $this->registerFileStorage();
         $this->registerEventHandlers();
+        $this->registerStagingLoader();
+        $this->registerAggregator();
+        $this->registerImportOrchestrator();
     }
 
     /**
@@ -95,6 +99,24 @@ class AppServiceProvider extends ServiceProvider
             return new ImportOrchestrator(
                 eventPublisher: $this->app->make(EventPublisher::class),
                 importLogRepository: $this->app->make(ImportLogRepository::class),
+            );
+        });
+    }
+
+    private function registerStagingLoader(): void
+    {
+        $this->app->bind(StagingLoader::class, function () {
+            return new StagingLoader(
+                pdo: \DB::connection()->getPdo(),
+            );
+        });
+    }
+
+    private function registerAggregator(): void
+    {
+        $this->app->bind(Aggregator::class, function () {
+            return new Aggregator(
+                pdo: \DB::connection()->getPdo(),
             );
         });
     }
