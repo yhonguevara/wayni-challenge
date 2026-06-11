@@ -96,6 +96,11 @@ final class Aggregator
         DB::statement('DROP INDEX IF EXISTS idx_debtors_situation');
         DB::statement('DROP INDEX IF EXISTS idx_debtors_loan_amount');
 
+        // max_situation = the highest-severity code per CUIT. The CASE maps each
+        // code to a severity rank (1..7, NOT alphabetical), MAX picks the worst,
+        // and the 1-indexed array maps the rank back to the code. Only valid
+        // codes reach the staging table (the parser filters by RN-04), so MAX is
+        // always over a non-empty set of mapped ranks.
         DB::statement(
             "INSERT INTO debtors (identification_number, max_situation, total_loan_amount, created_at, updated_at)
              SELECT

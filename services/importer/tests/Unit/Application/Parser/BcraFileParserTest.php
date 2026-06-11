@@ -233,4 +233,41 @@ class BcraFileParserTest extends TestCase
 
         @unlink($path);
     }
+
+    public function test_single_digit_situation_levels_map_to_spec_codes(): void
+    {
+        // The real BCRA file stores the debtor classification as a single digit
+        // left-aligned with a trailing space ("1 ", "2 ", … "5 "). Level "2" must
+        // map to "21" (Riesgo Bajo), NOT "02" (which is invalid and would be
+        // dropped). This guards the normalization bug that caused the aggregation
+        // to write NULL max_situation.
+        $path = tempnam(sys_get_temp_dir(), 'bcra_sit_');
+
+        // Campo 6 (situation) is at pos 28-29 (0-indexed 27, length 2).
+        $line = static function (string $cuit, string $sit2): string {
+            return '00001' . '202601' . '11' . $cuit . '001' . $sit2
+                . '000000001500,' . str_repeat('000000000000', 10) . '000000' . '0000';
+        };
+
+        file_put_contents($path, implode("\n", [
+            $line('20000000001', '1 '),  // level 1 → 01
+            $line('20000000002', '2 '),  // level 2 → 21 (Riesgo Bajo)
+            $line('20000000003', '3 '),  // level 3 → 03
+            $line('20000000004', '4 '),  // level 4 → 04
+            $line('20000000005', '5 '),  // level 5 → 05
+        ]) . "\n");
+
+        $parser = new BcraFileParser($path);
+        $byCuit = $parser->parse()->keyBy(fn ($r) => $r->identificationNumber)->all();
+
+        $this->assertCount(5, $byCuit, 'all 5 single-digit levels are valid and kept');
+        $this->assertSame('01', $byCuit['20000000001']->situation);
+        $this->assertSame('21', $byCuit['20000000002']->situation, "level 2 must be '21' (Riesgo Bajo), not '02'");
+        $this->assertSame('03', $byCuit['20000000003']->situation);
+        $this->assertSame('04', $byCuit['20000000004']->situation);
+        $this->assertSame('05', $byCuit['20000000005']->situation);
+        $this->assertSame(0, $parser->getSkippedCount(), 'no level is dropped as invalid');
+
+        @unlink($path);
+    }
 }

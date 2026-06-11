@@ -165,17 +165,32 @@ final class BcraFileParser
     }
 
     /**
-     * Normalize the situation code to the canonical 2-digit form.
+     * Normalize the situation code to the canonical 2-digit form of the spec.
      *
-     * The official spec defines Campo 6 as 2 numeric chars (01, 03, 04, 05, 11,
-     * 21, 23), but legacy BCRA files (e.g. nov-2023) left-align a single digit
-     * with a trailing space ("1 ", "5 "). We trim the padding and zero-pad to 2,
-     * so "1 " → "01", "5 " → "05". This keeps the canonical validCodes() check
-     * working against both the new and legacy file formats.
+     * The official spec (§1.1) defines Campo 6 with codes 01, 21, 23, 03, 04,
+     * 05, 11. But the real BCRA file left-aligns a SINGLE-DIGIT debtor
+     * classification level (1..5) with a trailing space ("1 ", "2 ", … "5 ").
+     * That level maps to the spec codes — and crucially level "2" is "21"
+     * (Riesgo Bajo), NOT "02" (which does not exist). Zero-padding would produce
+     * the invalid "02" and silently drop every level-2 debtor.
+     *
+     * Single-digit levels → spec codes:
+     *   1 → 01 (Normal)      2 → 21 (Riesgo Bajo)   3 → 03 (Riesgo Medio)
+     *   4 → 04 (Riesgo Alto) 5 → 05 (Irrecuperable)
+     * Values already 2 chars (e.g. "11", "23", "21") are passed through as-is.
      */
     private function normalizeSituation(string $raw): string
     {
-        return str_pad(trim($raw), 2, '0', STR_PAD_LEFT);
+        $trimmed = trim($raw);
+
+        return match ($trimmed) {
+            '1' => '01',
+            '2' => '21',
+            '3' => '03',
+            '4' => '04',
+            '5' => '05',
+            default => $trimmed,
+        };
     }
 
     /**
