@@ -97,8 +97,10 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(ImportOrchestrator::class, function () {
             return new ImportOrchestrator(
-                eventPublisher: $this->app->make(EventPublisher::class),
+                stagingLoader: $this->app->make(StagingLoader::class),
+                aggregator: $this->app->make(Aggregator::class),
                 importLogRepository: $this->app->make(ImportLogRepository::class),
+                notificationSender: $this->app->make(NotificationSender::class),
             );
         });
     }

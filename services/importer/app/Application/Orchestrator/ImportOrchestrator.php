@@ -4,57 +4,58 @@ declare(strict_types=1);
 
 namespace App\Application\Orchestrator;
 
+use App\Application\Notification\NotificationSender;
 use App\Application\Parser\BcraFileParser;
-use App\Application\Ports\EventPublisher;
 use App\Application\Ports\ImportLogRepository;
-use App\Domain\Events\DebtorProcessed;
-use App\Domain\Events\EntityProcessed;
 use App\Domain\Events\ImportCompleted;
-use App\Models\ImportLog;
-use Illuminate\Support\Facades\DB;
+use App\Infrastructure\Persistence\Aggregator;
+use App\Infrastructure\Persistence\StagingLoader;
 
 /**
- * Coordinates the BCRA file processing pipeline — STREAMING-PURE design.
+ * Coordinates the BCRA file processing pipeline — ELT design.
  *
  * Responsibilities:
- *   1. Set status 'processing'.
- *   2. TRUNCATE debtors and entities so re-upload replaces, not accumulates.
- *   3. Stream parser->parse(); for each record build ONE DebtorProcessed +
- *      ONE EntityProcessed event (NO in-memory aggregation).
- *   4. Publish events in batches of BATCH_SIZE.
- *   5. Publish ImportCompleted with totalDebtors = totalEntities = lineCount.
- *   6. Set status 'publishing' (sentinel owns 'completed').
+ *   1. Find or create ImportLog; set status 'processing', started_at now.
+ *   2. Call gcOrphans() to clean up stale staging tables from prior dead runs.
+ *   3. Resume-aware load: if last_loaded_line > 0 AND staging table exists,
+ *      StagingLoader resumes from that checkpoint; otherwise starts fresh.
+ *      Rows stream O(1) from BcraFileParser into StagingLoader (never materialized).
+ *   4. Aggregate: severity-correct GROUP BY INSERT into debtors + entities (TRUNCATE-first).
+ *   5. Drop staging table.
+ *   6. Set status 'completed', finished_at, total_records, valid_records, duration.
+ *   7. Build ImportCompleted domain event; call notificationSender->send() directly.
  *
- * Memory is O(batch), not O(unique CUITs) — safe for the 5.6 GB / 34 M line file.
+ * Error path:
+ *   - Set status 'failed', error_message, finished_at.
+ *   - Staging table is RETAINED (for resume on retry).
+ *   - Re-throw the exception.
  *
- * Notification is NOT sent here. The importer's ConsumeEventsCommand drives
- * CompletionSentinelHandler which fires the notification exactly once after all
- * records are persisted. This ensures "notified" means "persisted".
+ * Status path: processing → completed | failed.
+ * There is NO 'publishing' or 'persisting' status in the ELT design.
  */
 final class ImportOrchestrator
 {
-    /** Number of events accumulated before calling publishBatch. */
-    private const BATCH_SIZE = 100;
-
     public function __construct(
-        private readonly EventPublisher $eventPublisher,
+        private readonly StagingLoader $stagingLoader,
+        private readonly Aggregator $aggregator,
         private readonly ImportLogRepository $importLogRepository,
+        private readonly NotificationSender $notificationSender,
     ) {}
 
     /**
-     * Execute the full import pipeline.
+     * Execute the full ELT import pipeline.
      *
-     * @throws \Throwable on processing failure
+     * @throws \Throwable on processing failure (staging is retained for resume)
      */
-    public function orchestrate(string $filePath, string $importId): ImportLog
+    public function orchestrate(string $filePath, string $importId): void
     {
         $startTime = microtime(true);
 
-        // 1. Create/update ImportLog (status: processing, started_at: now)
+        // 1. Find or create ImportLog; set status 'processing'.
         $importLog = $this->importLogRepository->find($importId);
 
         if ($importLog === null) {
-            $importLog = $this->importLogRepository->create([
+            $this->importLogRepository->create([
                 'id'         => $importId,
                 'filename'   => basename($filePath),
                 'status'     => 'processing',
@@ -67,53 +68,34 @@ final class ImportOrchestrator
         }
 
         try {
-            // 2. TRUNCATE debtors and entities — "latest file wins" semantics.
-            //    Re-upload replaces the previous state instead of accumulating.
-            DB::table('debtors')->truncate();
-            DB::table('entities')->truncate();
+            // 2. GC: clean up stale staging tables from prior dead runs.
+            $this->stagingLoader->gcOrphans();
 
-            // 3. Stream parser and publish per-line events
-            $parser    = new BcraFileParser($filePath);
-            $batch     = [];
-            $lineCount = 0;
-            $now       = new \DateTimeImmutable();
+            // 3. Load: stream parser rows into StagingLoader (O(1) memory).
+            //    StagingLoader internally handles resume vs. fresh-start based on
+            //    last_loaded_line from import_logs. The orchestrator just passes the
+            //    full row stream; the loader skips already-loaded lines itself.
+            $parser = new BcraFileParser($filePath);
+            $this->stagingLoader->load($importId, $parser->parse());
 
-            foreach ($parser->parse() as $record) {
-                $lineCount++;
+            // 4. Aggregate: severity-correct GROUP BY INSERT from staging to targets.
+            $this->aggregator->aggregate($importId);
 
-                $batch[] = new DebtorProcessed(
-                    identificationNumber: $record->identificationNumber,
-                    maxSituation: $record->situation,
-                    totalLoans: $record->loans,
-                    importId: $importId,
-                    processedAt: $now,
-                    lineNumber: $record->lineNumber,
-                );
+            // 5. Drop staging table (success path only).
+            $this->stagingLoader->dropStaging($importId);
 
-                $batch[] = new EntityProcessed(
-                    entityCode: $record->entityCode,
-                    totalLoans: $record->loans,
-                    importId: $importId,
-                    processedAt: $now,
-                    lineNumber: $record->lineNumber,
-                );
-
-                if (count($batch) >= self::BATCH_SIZE) {
-                    $this->eventPublisher->publishBatch($batch);
-                    $batch = [];
-                }
-            }
-
-            // Flush remaining events
-            if ($batch !== []) {
-                $this->eventPublisher->publishBatch($batch);
-            }
-
-            // 4. Publish ImportCompleted.
-            //    totalDebtors = totalEntities = lineCount so the sentinel's
-            //    $total = totalDebtors + totalEntities = 2 * lineCount, which
-            //    matches exactly 2 events published per line.
+            // 6. Mark as 'completed'.
             $durationMs = (int) ((microtime(true) - $startTime) * 1000);
+            $lineCount = $this->fetchLineCount($importId);
+
+            $this->importLogRepository->updateStatus($importId, 'completed', [
+                'finished_at'   => now(),
+                'total_records' => $lineCount,
+                'valid_records' => $lineCount,
+                'duration'      => $durationMs,
+            ]);
+
+            // 7. Send completion notification directly (sequential — no consume-path).
             $importCompleted = new ImportCompleted(
                 importId: $importId,
                 filename: basename($filePath),
@@ -123,19 +105,9 @@ final class ImportOrchestrator
                 completedAt: new \DateTimeImmutable(),
             );
 
-            $this->eventPublisher->publishImportCompleted($importCompleted);
-
-            // 5. Update ImportLog — mark as 'publishing'.
-            //    'completed' is owned by the sentinel handler after all records are persisted.
-            $this->importLogRepository->updateStatus($importId, 'publishing', [
-                'total_records'   => $lineCount * 2,
-                'valid_records'   => $lineCount,
-                'invalid_records' => 0,
-                'duration'        => $durationMs,
-            ]);
-
-            return $importLog;
+            $this->notificationSender->send($importCompleted);
         } catch (\Throwable $e) {
+            // Error path: mark failed, RETAIN staging for resume, re-throw.
             $this->importLogRepository->updateStatus($importId, 'failed', [
                 'finished_at'   => now(),
                 'error_message' => $e->getMessage(),
@@ -143,5 +115,21 @@ final class ImportOrchestrator
 
             throw $e;
         }
+    }
+
+    /**
+     * Read the last_loaded_line from import_logs as a proxy for total rows loaded.
+     *
+     * After a full successful load, last_loaded_line equals the number of valid
+     * records written to staging (the loader advances it per chunk to the last
+     * line number emitted by the parser).
+     */
+    private function fetchLineCount(string $importId): int
+    {
+        $row = \Illuminate\Support\Facades\DB::table('import_logs')
+            ->where('id', $importId)
+            ->value('last_loaded_line');
+
+        return (int) ($row ?? 0);
     }
 }
