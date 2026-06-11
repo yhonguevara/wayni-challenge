@@ -184,7 +184,7 @@
 
                     try {
                         // Step 1: Get pre-signed URL
-                        const presignResponse = await fetch('/api/presign', {
+                        const presignResponse = await fetch('/api/v1/presign', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -231,7 +231,7 @@
                         });
 
                         // Step 3: Notify backend
-                        const notifyResponse = await fetch('/api/notify-upload', {
+                        const notifyResponse = await fetch('/api/v1/notify-upload', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -263,7 +263,7 @@
                     this.errorMessage = '';
 
                     try {
-                        const response = await fetch('/api/upload', {
+                        const response = await fetch('/api/v1/upload', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',

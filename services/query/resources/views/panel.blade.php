@@ -84,7 +84,7 @@
         {{-- Section 1: Get Debtor by CUIT --}}
         <div class="section">
             <h2><span class="method-badge">GET</span> Obtener Deudor por CUIT</h2>
-            <div class="endpoint-path">/api/debtors/{cuit}</div>
+            <div class="endpoint-path">/api/v1/debtors/{cuit}</div>
             <div class="form-row">
                 <div class="form-group">
                     <label>CUIT</label>
@@ -119,7 +119,7 @@
         {{-- Section 2: Get Entity by Code --}}
         <div class="section">
             <h2><span class="method-badge">GET</span> Obtener Entidad por Código</h2>
-            <div class="endpoint-path">/api/entities/{code}</div>
+            <div class="endpoint-path">/api/v1/entities/{code}</div>
             <div class="form-row">
                 <div class="form-group">
                     <label>Código de Entidad</label>
@@ -154,7 +154,7 @@
         {{-- Section 3: Top N Debtors --}}
         <div class="section">
             <h2><span class="method-badge">GET</span> Top N Deudores</h2>
-            <div class="endpoint-path">/api/debtors/top/{n}</div>
+            <div class="endpoint-path">/api/v1/debtors/top/{n}</div>
             <div class="form-row">
                 <div class="form-group" style="max-width:160px;">
                     <label>N (1–100)</label>
@@ -189,7 +189,7 @@
         {{-- Section 4: List Debtors --}}
         <div class="section">
             <h2><span class="method-badge">GET</span> Listar Deudores (con filtros)</h2>
-            <div class="endpoint-path">/api/debtors?situation={code}&per_page={n}&page={p}</div>
+            <div class="endpoint-path">/api/v1/debtors?situation={code}&per_page={n}&page={p}</div>
             <div class="form-row">
                 <div class="form-group">
                     <label>Situación</label>
@@ -268,8 +268,8 @@
     <script>
         function apiPanel() {
             // The panel is served by the query service itself, so the API is
-            // same-origin — relative '/api' avoids any cross-origin/CORS concern.
-            const BASE = '/api';
+            // same-origin — relative '/api/v1' avoids any cross-origin/CORS concern.
+            const BASE = '/api/v1';
 
             function emptySection() {
                 return { loading: false, response: null, responseText: '', responseTime: null, error: '' };
