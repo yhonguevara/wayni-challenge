@@ -14,8 +14,8 @@ Microservices system that processes the BCRA (Central Bank of Argentina) debtor 
 
   deudores_bcra.txt
   ────────────────►  ┌──────────────┐
-  POST /api/upload   │   Importer   │  upload UI + API
-  /notify-upload     │  (port 8001) │  dispatches a queue job
+  POST /api/v1/...   │   Importer   │  upload UI + API
+  (upload/notify)    │  (port 8001) │  dispatches a queue job
   or artisan cmd     └──────┬───────┘
                             │ queue job (ProcessBcraFile)
                      ┌──────▼───────────────────────────────┐
@@ -118,7 +118,7 @@ The command prints a summary: total lines, debtors, entities, and duration.
 The file must already be reachable from inside the importer container (e.g. copied as in Option A). The endpoint accepts a JSON `path` and queues the job — it does **not** accept a multipart file upload.
 
 ```bash
-curl -s -X POST http://localhost:8001/api/upload \
+curl -s -X POST http://localhost:8001/api/v1/upload \
   -H "Content-Type: application/json" \
   -d '{"path": "/app/storage/app/uploads/deudores_sample.txt"}' | jq .
 # → 202 { "import_log_id": "...", "status": "queued", ... }
@@ -128,7 +128,7 @@ curl -s -X POST http://localhost:8001/api/upload \
 
 ```bash
 # 1. Ask for a pre-signed POST. Returns { "upload_url": "...", "fields": { ... } }
-curl -s -X POST http://localhost:8001/api/presign \
+curl -s -X POST http://localhost:8001/api/v1/presign \
   -H "Content-Type: application/json" \
   -d '{"filename": "deudores.txt"}' | jq .
 
@@ -141,7 +141,7 @@ curl -X POST "<upload_url>" \
   -F "file=@deudores.txt"
 
 # 3. Notify completion with the same key — this queues processing.
-curl -s -X POST http://localhost:8001/api/notify-upload \
+curl -s -X POST http://localhost:8001/api/v1/notify-upload \
   -H "Content-Type: application/json" \
   -d '{"key": "<fields.key>"}' | jq .
 ```
@@ -165,33 +165,33 @@ Both pages link to each other, so you can navigate between upload and query with
 
 | Method | Path | Body | Description |
 |--------|------|------|-------------|
-| `POST` | `/api/upload` | `{ "path": "<container path>" }` | Queue processing of a file already inside the container |
-| `POST` | `/api/presign` | `{ "filename": "<name>" }` | Get an S3 pre-signed POST (`upload_url` + `fields`) |
-| `POST` | `/api/notify-upload` | `{ "key": "<s3 key>" }` | Notify that an S3 upload completed; queues processing |
+| `POST` | `/api/v1/upload` | `{ "path": "<container path>" }` | Queue processing of a file already inside the container |
+| `POST` | `/api/v1/presign` | `{ "filename": "<name>" }` | Get an S3 pre-signed POST (`upload_url` + `fields`) |
+| `POST` | `/api/v1/notify-upload` | `{ "key": "<s3 key>" }` | Notify that an S3 upload completed; queues processing |
 
 ### Query API (port 8000)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/debtors/{cuit}` | Get debtor by CUIT |
-| `GET` | `/api/debtors/top/{n}` | Top N debtors by total loan amount |
-| `GET` | `/api/debtors?situation={code}` | List debtors with filters and pagination |
-| `GET` | `/api/entities/{code}` | Get entity by code |
+| `GET` | `/api/v1/debtors/{cuit}` | Get debtor by CUIT |
+| `GET` | `/api/v1/debtors/top/{n}` | Top N debtors by total loan amount |
+| `GET` | `/api/v1/debtors?situation={code}` | List debtors with filters and pagination |
+| `GET` | `/api/v1/entities/{code}` | Get entity by code |
 
 ### Examples
 
 ```bash
 # Get debtor by CUIT
-curl -s http://localhost:8000/api/debtors/20123456789 | jq .
+curl -s http://localhost:8000/api/v1/debtors/20123456789 | jq .
 
 # Top 10 debtors
-curl -s http://localhost:8000/api/debtors/top/10 | jq .
+curl -s http://localhost:8000/api/v1/debtors/top/10 | jq .
 
 # Filter by situation code
-curl -s "http://localhost:8000/api/debtors?situation=05&per_page=50" | jq .
+curl -s "http://localhost:8000/api/v1/debtors?situation=05&per_page=50" | jq .
 
 # Get entity
-curl -s http://localhost:8000/api/entities/00011 | jq .
+curl -s http://localhost:8000/api/v1/entities/00011 | jq .
 ```
 
 **Situation codes (BCRA §1.1):** `01` Normal, `21` Low risk, `23` Special treatment, `03` Medium risk, `04` High risk, `05` Unrecoverable, `11` Fully covered by preferred "A" guarantees
@@ -300,6 +300,35 @@ curl -s http://localhost:4566/_localstack/health | jq .
 # Full reset
 docker compose down -v && docker compose up -d
 ```
+
+## Known Limitations & Future Work
+
+The system is functionally complete and meets all challenge requirements. The items below are deliberate scope decisions and desirable hardening for a production deployment.
+
+### Security & Access
+
+- **No authentication** — both the query API and ingest endpoints are public. A static API token or Sanctum should gate them before any real deployment, especially the importer (a caller can trigger a multi-GB import). This is a deliberate simplification for the challenge.
+
+### Query API
+
+- **Uniform error envelope** — 404 is hand-rolled while 422 uses Laravel's default shape; the two services differ. A single `{error:{code,message,details}}` envelope across both services would be cleaner.
+- **Richer filtering/sorting** — `/debtors` filters only by exact `situation`; amount-range filters and configurable sort direction would be useful given the data shape.
+- **OpenAPI / Swagger docs** — no machine-readable API contract is published; a generated spec (Scribe / L5-Swagger) is a natural addition.
+- **CORS config** — no explicit `config/cors.php`; relies on framework defaults. Should be made explicit for the browser-driven pre-signed upload.
+
+### Ingest / Pipeline Robustness
+
+- **Aggregation is not transactional** — the aggregator does `TRUNCATE` then `INSERT … SELECT` per target table outside a single transaction; a failure mid-aggregate leaves targets empty until retry. Wrapping both inserts in one transaction would ensure a failed run leaves the previous good data intact.
+- **Stuck-import recovery** — an import that crashes while `processing` will block the single-active-import guard until cleared manually; a stale-import timeout or watchdog would auto-recover.
+- **Scheduled staging GC** — orphan `raw_records_*` staging tables are only garbage-collected at the start of the next import; a scheduled daily GC command would reclaim them sooner.
+- **Per-phase timing & metrics** — only a single end-to-end duration is recorded; emitting load-vs-aggregate timings would aid observability of the ~20-min pipeline.
+- **Readiness healthcheck** — `/up` only confirms the framework boots; a `/health/ready` probing DB / S3 / queue would be better for orchestration.
+- **DLQ alerting** — failed jobs land in `failed_jobs` and the import log, but there is no surfacing or alerting; a dead-letter alert and import-status listing endpoint would close the loop.
+- **Import status endpoint** — `import_logs` carries status, progress, and counts but there is no `GET /api/v1/imports/{id}` to read it; clients only get the initial 202.
+
+### Testing
+
+- Desirable additions: an integration test for the presign → notify → process flow, a concurrency / double-submit test, and a malformed-line / invalid_records assertion test.
 
 ## License
 
