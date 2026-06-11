@@ -52,6 +52,13 @@ final class StagingLoader
      */
     public function load(string $importId, iterable $records): void
     {
+        // Disable the query log for the duration of the bulk load. Laravel
+        // accumulates every executed query in an in-memory array; across the
+        // thousands of chunk transactions for a multi-GB file that grows
+        // unbounded and exhausts memory. The load issues no queries we need to
+        // inspect, so turning it off keeps memory O(chunk).
+        DB::connection()->disableQueryLog();
+
         $slug = $this->slugFromId($importId);
         $table = 'raw_records_' . $slug;
 

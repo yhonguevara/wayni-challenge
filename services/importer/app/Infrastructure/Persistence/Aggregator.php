@@ -25,6 +25,13 @@ use PDO;
  */
 final class Aggregator
 {
+    /**
+     * work_mem for the aggregation connection. The GROUP BY over the full
+     * staging set (tens of millions of rows) must hash-aggregate in memory
+     * rather than spilling to disk. PostgreSQL accepts the quoted form.
+     */
+    private const AGGREGATION_WORK_MEM = "'256MB'";
+
     public function __construct(
         private readonly PDO $pdo,
     ) {}
@@ -45,6 +52,12 @@ final class Aggregator
     {
         $slug = $this->slugFromId($importId);
         $staging = 'raw_records_' . $slug;
+
+        // The default work_mem (4MB) forces the GROUP BY over tens of millions
+        // of staging rows to spill to disk, which dominates the runtime. Raise
+        // it for this connection so the hash aggregate stays in memory. Scoped
+        // to the worker connection; it does not change the server default.
+        DB::statement('SET work_mem = ' . self::AGGREGATION_WORK_MEM);
 
         $this->aggregateDebtors($staging);
         $this->aggregateEntities($staging);
@@ -75,6 +88,14 @@ final class Aggregator
     {
         DB::statement('TRUNCATE debtors');
 
+        // Drop the secondary (query-only) indexes before the bulk INSERT and
+        // recreate them after. Maintaining them per-row across ~20M inserts is
+        // the dominant cost; building each index once at the end is far faster.
+        // The PRIMARY KEY and the identification_number UNIQUE constraint stay —
+        // they guard integrity during the load.
+        DB::statement('DROP INDEX IF EXISTS idx_debtors_situation');
+        DB::statement('DROP INDEX IF EXISTS idx_debtors_loan_amount');
+
         DB::statement(
             "INSERT INTO debtors (identification_number, max_situation, total_loan_amount, created_at, updated_at)
              SELECT
@@ -96,6 +117,9 @@ final class Aggregator
              FROM {$staging}
              GROUP BY identification_number"
         );
+
+        DB::statement('CREATE INDEX idx_debtors_situation ON debtors (max_situation)');
+        DB::statement('CREATE INDEX idx_debtors_loan_amount ON debtors (total_loan_amount)');
     }
 
     /**
