@@ -23,9 +23,24 @@ final class BcraFileParser
     /** Identification type for CUIT/CUIL/CDI (RN-03) */
     private const IDENTIFICATION_TYPE_CUIT = '11';
 
+    /** Lines skipped due to short length, wrong identification type, invalid situation, or parse error. */
+    private int $skippedCount = 0;
+
     public function __construct(
         private readonly string $filePath,
     ) {}
+
+    /**
+     * Return the number of lines skipped during the last (or current) parse run.
+     *
+     * The count is only accurate after the LazyCollection returned by parse() has
+     * been fully consumed. Callers (e.g. ImportOrchestrator) must read this AFTER
+     * the load step completes.
+     */
+    public function getSkippedCount(): int
+    {
+        return $this->skippedCount;
+    }
 
     /**
      * Parse the BCRA file and return a lazy collection of BcraRecordDTO.
@@ -63,7 +78,7 @@ final class BcraFileParser
 
                 // Validate line length
                 if (mb_strlen($line) < self::LINE_LENGTH) {
-                    // Log warning and skip malformed lines
+                    $this->skippedCount++;
                     error_log(sprintf(
                         'BCRA Parser: Skipping line %d (length %d, expected %d)',
                         $lineNumber,
@@ -78,16 +93,29 @@ final class BcraFileParser
 
                     // RN-03: Filter non-CUIT identification types
                     if ($dto->identificationType !== self::IDENTIFICATION_TYPE_CUIT) {
+                        $this->skippedCount++;
+                        error_log(sprintf(
+                            'BCRA Parser: Skipping line %d — identification type "%s" is not CUIT (11)',
+                            $lineNumber,
+                            $dto->identificationType,
+                        ));
                         continue;
                     }
 
                     // RN-04: Filter invalid situation codes
                     if (!in_array($dto->situation, Situation::validCodes(), true)) {
+                        $this->skippedCount++;
+                        error_log(sprintf(
+                            'BCRA Parser: Skipping line %d — invalid situation code "%s"',
+                            $lineNumber,
+                            $dto->situation,
+                        ));
                         continue;
                     }
 
                     yield $dto;
                 } catch (\Throwable $e) {
+                    $this->skippedCount++;
                     error_log(sprintf(
                         'BCRA Parser: Error parsing line %d: %s',
                         $lineNumber,

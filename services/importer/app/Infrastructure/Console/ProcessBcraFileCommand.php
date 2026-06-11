@@ -5,21 +5,27 @@ declare(strict_types=1);
 namespace App\Infrastructure\Console;
 
 use App\Application\Jobs\ProcessBcraFile;
-use App\Models\ImportLog;
+use App\Application\Ports\ImportLogRepository;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
 /**
  * Artisan command to process BCRA files.
  *
- * Validates the file exists, creates an ImportLog, and dispatches
- * the ProcessBcraFile job for async processing.
+ * Validates the file exists, checks for active imports (Item 3 guard),
+ * creates an ImportLog, and dispatches the ProcessBcraFile job for async processing.
  */
 final class ProcessBcraFileCommand extends Command
 {
     protected $signature = 'bcra:process {path : Path to the BCRA deudores.txt file}';
 
     protected $description = 'Process a BCRA deudores file and import data';
+
+    public function __construct(
+        private readonly ImportLogRepository $importLogRepository,
+    ) {
+        parent::__construct();
+    }
 
     public function handle(): int
     {
@@ -38,14 +44,22 @@ final class ProcessBcraFileCommand extends Command
             return self::FAILURE;
         }
 
+        // Single-active-import guard (Item 3).
+        $activeId = $this->importLogRepository->hasActiveImport();
+        if ($activeId !== null) {
+            $this->error("An import is already in progress (import_log_id: {$activeId}). Wait for it to complete before starting a new one.");
+
+            return self::FAILURE;
+        }
+
         // Generate import ID
         $importId = (string) Str::uuid();
 
         // Create ImportLog (status: pending)
-        $importLog = ImportLog::create([
-            'id' => $importId,
+        $this->importLogRepository->create([
+            'id'       => $importId,
             'filename' => basename($path),
-            'status' => 'pending',
+            'status'   => 'pending',
         ]);
 
         // Dispatch job

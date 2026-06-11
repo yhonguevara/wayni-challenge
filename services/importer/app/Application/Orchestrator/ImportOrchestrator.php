@@ -77,6 +77,8 @@ final class ImportOrchestrator
             //    full row stream; the loader skips already-loaded lines itself.
             $parser = new BcraFileParser($filePath);
             $this->stagingLoader->load($importId, $parser->parse());
+            // After load() fully consumes the generator, the parser's skip counter is accurate.
+            $skippedCount = $parser->getSkippedCount();
 
             // 4. Aggregate: severity-correct GROUP BY INSERT from staging to targets.
             $this->aggregator->aggregate($importId);
@@ -86,21 +88,23 @@ final class ImportOrchestrator
 
             // 6. Mark as 'completed'.
             $durationMs = (int) ((microtime(true) - $startTime) * 1000);
-            $lineCount = $this->fetchLineCount($importId);
+            $validCount = $this->fetchLineCount($importId);
+            $totalCount = $validCount + $skippedCount;
 
             $this->importLogRepository->updateStatus($importId, 'completed', [
-                'finished_at'   => now(),
-                'total_records' => $lineCount,
-                'valid_records' => $lineCount,
-                'duration'      => $durationMs,
+                'finished_at'    => now(),
+                'total_records'  => $totalCount,
+                'valid_records'  => $validCount,
+                'invalid_records' => $skippedCount,
+                'duration'       => $durationMs,
             ]);
 
             // 7. Send completion notification directly (sequential — no consume-path).
             $importCompleted = new ImportCompleted(
                 importId: $importId,
                 filename: basename($filePath),
-                totalDebtors: $lineCount,
-                totalEntities: $lineCount,
+                totalDebtors: $validCount,
+                totalEntities: $validCount,
                 durationMs: $durationMs,
                 completedAt: new \DateTimeImmutable(),
             );

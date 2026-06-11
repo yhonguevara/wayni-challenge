@@ -377,6 +377,31 @@ class ImportOrchestratorTest extends TestCase
     }
 
     // -----------------------------------------------------------------------
+    // ITEM 5 — invalid_records and total_records tracking
+    // -----------------------------------------------------------------------
+
+    public function test_orchestrate_sets_invalid_records_and_total_records(): void
+    {
+        // Arrange — fixture with 3 valid + 1 short line + 1 non-CUIT + 1 bad situation = 3 skipped
+        $importId = (string) Str::uuid();
+        $fixturePath = $this->createFixtureFileWithInvalidLines(validCount: 3, invalidCount: 3);
+
+        $this->notificationSender->method('send');
+
+        // Act
+        $this->orchestrator->orchestrate($fixturePath, $importId);
+
+        // Assert
+        $log = DB::table('import_logs')->where('id', $importId)->first();
+        $this->assertNotNull($log);
+        $this->assertSame(3, (int) $log->valid_records, 'valid_records must equal valid lines only');
+        $this->assertSame(3, (int) $log->invalid_records, 'invalid_records must count skipped lines');
+        $this->assertSame(6, (int) $log->total_records, 'total_records must be valid + invalid');
+
+        @unlink($fixturePath);
+    }
+
+    // -----------------------------------------------------------------------
     // Fixture helpers
     // -----------------------------------------------------------------------
 
@@ -446,6 +471,43 @@ class ImportOrchestratorTest extends TestCase
                 . $amounts
                 . $flags
                 . $daysOverdue;
+        }
+
+        file_put_contents($path, implode("\n", $lines) . "\n");
+
+        return $path;
+    }
+
+    /**
+     * Create a fixture file with $validCount valid BCRA lines and $invalidCount invalid lines
+     * (one short, one non-CUIT, one bad situation — cycling for $invalidCount items).
+     *
+     * Invalid lines are interleaved so the parser actually skips them.
+     */
+    private function createFixtureFileWithInvalidLines(int $validCount, int $invalidCount): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'bcra_inv_');
+        $lines = [];
+
+        for ($i = 0; $i < $validCount; $i++) {
+            $idNum = str_pad((string) (20345123458 + $i), 11, '0', STR_PAD_LEFT);
+            $amounts = str_repeat('000000000000', 10);
+            $lines[] = '00001' . '202601' . '11' . $idNum . '001' . '01'
+                . '000000001500,' . $amounts . '000000' . '0000';
+        }
+
+        $invalidTemplates = [
+            'SHORT', // short line (< 171 chars)
+            // non-CUIT (tipo 99 instead of 11) — full 171-char line
+            '00001' . '202601' . '99' . '20345000001' . '001' . '01'
+                . '000000001500,' . str_repeat('000000000000', 10) . '000000' . '0000',
+            // invalid situation code '99' — full 171-char line
+            '00001' . '202601' . '11' . '20345000002' . '001' . '99'
+                . '000000001500,' . str_repeat('000000000000', 10) . '000000' . '0000',
+        ];
+
+        for ($j = 0; $j < $invalidCount; $j++) {
+            $lines[] = $invalidTemplates[$j % count($invalidTemplates)];
         }
 
         file_put_contents($path, implode("\n", $lines) . "\n");

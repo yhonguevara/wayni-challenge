@@ -40,4 +40,11 @@ final class EloquentImportLogRepository implements ImportLogRepository
     {
         return $this->model->find($importId);
     }
+
+    public function hasActiveImport(): ?string
+    {
+        return $this->model
+            ->whereIn('status', ['pending', 'processing'])
+            ->value('id');
+    }
 }

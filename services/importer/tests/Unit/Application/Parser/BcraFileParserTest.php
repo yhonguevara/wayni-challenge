@@ -180,4 +180,57 @@ class BcraFileParserTest extends TestCase
             $this->assertContains($situation, $validSituations);
         }
     }
+
+    // -----------------------------------------------------------------------
+    // ITEM 5 — Skipped-line counter (invalid_records)
+    // -----------------------------------------------------------------------
+
+    public function test_get_skipped_count_is_zero_for_all_valid_file(): void
+    {
+        // Arrange
+        $parser = new BcraFileParser($this->fixturesPath() . 'bcra_10_lines.txt');
+
+        // Act — fully consume the collection
+        $parser->parse()->all();
+
+        // Assert
+        $this->assertSame(0, $parser->getSkippedCount());
+    }
+
+    public function test_get_skipped_count_counts_short_lines_and_filtered_records(): void
+    {
+        // Arrange — a temp fixture with 2 valid + 1 short line + 1 non-CUIT + 1 invalid situation
+        $path = tempnam(sys_get_temp_dir(), 'bcra_skip_');
+
+        $validLine = '00001' . '202601' . '11' . '20345123458' . '001' . '01'
+            . '000000001500,' . str_repeat('000000000000', 10) . '000000' . '0000';
+
+        $shortLine  = 'SHORT'; // < 171 chars
+        $nonCuit    = '00001' . '202601' . '99' . '20345123458' . '001' . '01'
+            . '000000001500,' . str_repeat('000000000000', 10) . '000000' . '0000'; // tipo 99
+        $badSit     = '00001' . '202601' . '11' . '20999999999' . '001' . '99'
+            . '000000001500,' . str_repeat('000000000000', 10) . '000000' . '0000'; // situation 99
+
+        $secondValidLine = '00001' . '202601' . '11' . '20123456789' . '001' . '01'
+            . '000000001500,' . str_repeat('000000000000', 10) . '000000' . '0000';
+
+        file_put_contents($path, implode("\n", [
+            $validLine,
+            $shortLine,
+            $nonCuit,
+            $badSit,
+            $secondValidLine,
+        ]) . "\n");
+
+        $parser = new BcraFileParser($path);
+
+        // Act — fully consume
+        $valid = $parser->parse()->values()->all();
+
+        // Assert
+        $this->assertCount(2, $valid, '2 valid lines must yield 2 DTOs');
+        $this->assertSame(3, $parser->getSkippedCount(), 'short + non-CUIT + bad situation = 3 skipped');
+
+        @unlink($path);
+    }
 }

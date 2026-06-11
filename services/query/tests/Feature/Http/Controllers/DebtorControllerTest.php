@@ -28,7 +28,7 @@ class DebtorControllerTest extends TestCase
         ]);
 
         // Act
-        $response = $this->getJson('/api/debtors/20345123458');
+        $response = $this->getJson('/api/v1/debtors/20345123458');
 
         // Assert
         $response->assertStatus(200);
@@ -41,7 +41,7 @@ class DebtorControllerTest extends TestCase
     public function test_show_returns_404_for_non_existent_cuit(): void
     {
         // Act
-        $response = $this->getJson('/api/debtors/99999999999');
+        $response = $this->getJson('/api/v1/debtors/99999999999');
 
         // Assert
         $response->assertStatus(404);
@@ -50,7 +50,7 @@ class DebtorControllerTest extends TestCase
     public function test_show_returns_422_for_invalid_cuit_format(): void
     {
         // Act — too short
-        $response = $this->getJson('/api/debtors/12345');
+        $response = $this->getJson('/api/v1/debtors/12345');
 
         // Assert
         $response->assertStatus(422);
@@ -64,7 +64,7 @@ class DebtorControllerTest extends TestCase
         Debtor::create(['identification_number' => '20345123460', 'max_situation' => '05', 'total_loan_amount' => 3000.00]);
 
         // Act
-        $response = $this->getJson('/api/debtors/top/2');
+        $response = $this->getJson('/api/v1/debtors/top/2');
 
         // Assert
         $response->assertStatus(200);
@@ -77,7 +77,7 @@ class DebtorControllerTest extends TestCase
     public function test_top_returns_422_for_invalid_n(): void
     {
         // Act — n = 0
-        $response = $this->getJson('/api/debtors/top/0');
+        $response = $this->getJson('/api/v1/debtors/top/0');
 
         // Assert
         $response->assertStatus(422);
@@ -86,7 +86,7 @@ class DebtorControllerTest extends TestCase
     public function test_top_returns_422_for_negative_n(): void
     {
         // Act
-        $response = $this->getJson('/api/debtors/top/-1');
+        $response = $this->getJson('/api/v1/debtors/top/-1');
 
         // Assert
         $response->assertStatus(422);
@@ -104,7 +104,7 @@ class DebtorControllerTest extends TestCase
         }
 
         // Act
-        $response = $this->getJson('/api/debtors');
+        $response = $this->getJson('/api/v1/debtors');
 
         // Assert
         $response->assertStatus(200);
@@ -124,7 +124,7 @@ class DebtorControllerTest extends TestCase
         Debtor::create(['identification_number' => '20345123460', 'max_situation' => '03', 'total_loan_amount' => 3000.00]);
 
         // Act
-        $response = $this->getJson('/api/debtors?situation=03');
+        $response = $this->getJson('/api/v1/debtors?situation=03');
 
         // Assert
         $response->assertStatus(200);
@@ -134,7 +134,7 @@ class DebtorControllerTest extends TestCase
     public function test_index_returns_422_for_invalid_situation(): void
     {
         // Act
-        $response = $this->getJson('/api/debtors?situation=99');
+        $response = $this->getJson('/api/v1/debtors?situation=99');
 
         // Assert
         $response->assertStatus(422);
@@ -152,7 +152,7 @@ class DebtorControllerTest extends TestCase
         }
 
         // Act
-        $response = $this->getJson('/api/debtors?per_page=200');
+        $response = $this->getJson('/api/v1/debtors?per_page=200');
 
         // Assert
         $response->assertStatus(200);
@@ -168,7 +168,7 @@ class DebtorControllerTest extends TestCase
         ]);
 
         // Act
-        $response = $this->getJson('/api/debtors/20345123458');
+        $response = $this->getJson('/api/v1/debtors/20345123458');
 
         // Assert
         $response->assertStatus(200);

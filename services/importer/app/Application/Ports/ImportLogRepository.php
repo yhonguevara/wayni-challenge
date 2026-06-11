@@ -32,4 +32,11 @@ interface ImportLogRepository
      * Find an ImportLog by ID.
      */
     public function find(string $importId): ?ImportLog;
+
+    /**
+     * Return the ID of any import_log with status 'pending' or 'processing', or null if none.
+     *
+     * Used to enforce the single-active-import guard before dispatching a new job.
+     */
+    public function hasActiveImport(): ?string;
 }

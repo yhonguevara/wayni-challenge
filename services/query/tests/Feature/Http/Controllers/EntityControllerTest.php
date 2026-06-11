@@ -27,7 +27,7 @@ class EntityControllerTest extends TestCase
         ]);
 
         // Act
-        $response = $this->getJson('/api/entities/00001');
+        $response = $this->getJson('/api/v1/entities/00001');
 
         // Assert
         $response->assertStatus(200);
@@ -46,7 +46,7 @@ class EntityControllerTest extends TestCase
         ]);
 
         // Act
-        $response = $this->getJson('/api/entities/1');
+        $response = $this->getJson('/api/v1/entities/1');
 
         // Assert
         $response->assertStatus(200);
@@ -56,7 +56,7 @@ class EntityControllerTest extends TestCase
     public function test_show_returns_404_for_non_existent_code(): void
     {
         // Act
-        $response = $this->getJson('/api/entities/99999');
+        $response = $this->getJson('/api/v1/entities/99999');
 
         // Assert
         $response->assertStatus(404);
@@ -65,7 +65,7 @@ class EntityControllerTest extends TestCase
     public function test_show_returns_422_for_invalid_code_format(): void
     {
         // Act — too long (exceeds 5 characters)
-        $response = $this->getJson('/api/entities/123456');
+        $response = $this->getJson('/api/v1/entities/123456');
 
         // Assert
         $response->assertStatus(422);
@@ -80,7 +80,7 @@ class EntityControllerTest extends TestCase
         ]);
 
         // Act
-        $response = $this->getJson('/api/entities/00001');
+        $response = $this->getJson('/api/v1/entities/00001');
 
         // Assert
         $response->assertStatus(200);
