@@ -195,13 +195,13 @@
                     <label>Situación</label>
                     <select x-model="listForm.situation">
                         <option value="">Todas</option>
-                        <option value="01">01 — Normal</option>
-                        <option value="03">03 — Con observación</option>
-                        <option value="04">04 — Incumplimiento</option>
-                        <option value="05">05 — Deficiente</option>
-                        <option value="11">11 — Dudoso</option>
-                        <option value="21">21 — Irrecuperable</option>
-                        <option value="23">23 — Irrecuperable (judicial)</option>
+                        <option value="01">01 — Situación Normal</option>
+                        <option value="21">21 — Riesgo Bajo</option>
+                        <option value="23">23 — En tratamiento especial</option>
+                        <option value="03">03 — Riesgo Medio</option>
+                        <option value="04">04 — Riesgo Alto</option>
+                        <option value="05">05 — Irrecuperable</option>
+                        <option value="11">11 — Cubierta con garantías preferidas "A"</option>
                     </select>
                 </div>
                 <div class="form-group" style="max-width:140px;">
@@ -248,13 +248,13 @@
                 <table>
                     <thead><tr><th>Código</th><th>Descripción</th></tr></thead>
                     <tbody>
-                        <tr><td><code>01</code></td><td>Normal</td></tr>
-                        <tr><td><code>03</code></td><td>Con observación</td></tr>
-                        <tr><td><code>04</code></td><td>Incumplimiento</td></tr>
-                        <tr><td><code>05</code></td><td>Deficiente</td></tr>
-                        <tr><td><code>11</code></td><td>Dudoso</td></tr>
-                        <tr><td><code>21</code></td><td>Irrecuperable</td></tr>
-                        <tr><td><code>23</code></td><td>Irrecuperable (judicial)</td></tr>
+                        <tr><td><code>01</code></td><td>Situación Normal</td></tr>
+                        <tr><td><code>21</code></td><td>Riesgo Bajo</td></tr>
+                        <tr><td><code>23</code></td><td>En tratamiento especial</td></tr>
+                        <tr><td><code>03</code></td><td>Riesgo Medio</td></tr>
+                        <tr><td><code>04</code></td><td>Riesgo Alto</td></tr>
+                        <tr><td><code>05</code></td><td>Irrecuperable</td></tr>
+                        <tr><td><code>11</code></td><td>Con asistencias cubiertas en su totalidad con garantías preferidas "A"</td></tr>
                     </tbody>
                 </table>
             </div>

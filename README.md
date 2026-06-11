@@ -194,7 +194,7 @@ curl -s "http://localhost:8000/api/debtors?situation=05&per_page=50" | jq .
 curl -s http://localhost:8000/api/entities/00011 | jq .
 ```
 
-**Situation codes:** `01` normal, `03` with observation, `04` non-compliant, `05` deficient, `11` doubtful, `21` irrecoverable, `23` irrecoverable (judicial)
+**Situation codes (BCRA §1.1):** `01` Normal, `21` Low risk, `23` Special treatment, `03` Medium risk, `04` High risk, `05` Unrecoverable, `11` Fully covered by preferred "A" guarantees
 
 ## Testing
 
