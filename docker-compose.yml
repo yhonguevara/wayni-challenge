@@ -68,30 +68,12 @@ services:
       start_period: 40s
     restart: unless-stopped
 
-  # Processes the ProcessBcraFile job: parse the TXT file and publish
-  # DebtorProcessed/EntityProcessed/ImportCompleted events to SQS.
+  # Processes the ProcessBcraFile job: ELT pipeline (stage → aggregate → notify).
   importer-worker:
     build:
       context: ./services/importer
       dockerfile: Dockerfile
     command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--timeout=0"]
-    env_file:
-      - ./services/importer/.env
-    depends_on:
-      init:
-        condition: service_completed_successfully
-    volumes:
-      - ./services/importer:/app
-      - /app/vendor
-    restart: unless-stopped
-
-  # Consumes the 3 SQS queues, upserts debtors/entities into the shared DB,
-  # and fires the completion notification once an import is fully persisted.
-  importer-consumer:
-    build:
-      context: ./services/importer
-      dockerfile: Dockerfile
-    command: ["php", "artisan", "events:consume"]
     env_file:
       - ./services/importer/.env
     depends_on:

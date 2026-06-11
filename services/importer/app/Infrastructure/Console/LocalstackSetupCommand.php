@@ -12,7 +12,7 @@ use Illuminate\Console\Command;
  * Artisan command to set up LocalStack resources (S3 bucket + SQS queues).
  *
  * Idempotent — safe to run multiple times.
- * Creates: bcra-files S3 bucket, debtor-events, entity-events, and import-completed SQS queues.
+ * Creates: bcra-files S3 bucket and import-completed SQS queue.
  */
 final class LocalstackSetupCommand extends Command
 {
@@ -58,8 +58,6 @@ final class LocalstackSetupCommand extends Command
         ]);
 
         // Create SQS queues (idempotent)
-        $this->createQueue($sqsClient, 'debtor-events');
-        $this->createQueue($sqsClient, 'entity-events');
         $this->createQueue($sqsClient, 'import-completed');
 
         $this->info('LocalStack setup complete!');

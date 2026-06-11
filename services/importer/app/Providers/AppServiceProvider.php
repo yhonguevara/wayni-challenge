@@ -6,25 +6,15 @@ namespace App\Providers;
 
 use App\Application\Notification\NotificationSender;
 use App\Application\Orchestrator\ImportOrchestrator;
-use App\Application\Ports\DebtorEventHandler;
-use App\Application\Ports\EntityEventHandler;
-use App\Application\Ports\EventPublisher;
 use App\Application\Ports\FileStorage;
-use App\Application\Ports\ImportCompletedHandler;
 use App\Application\Ports\ImportLogRepository;
-use App\Infrastructure\Console\ConsumeEventsCommand;
 use App\Infrastructure\Console\LocalstackSetupCommand;
 use App\Infrastructure\Console\ProcessBcraFileCommand;
-use App\Infrastructure\Handlers\CompletionSentinelHandler;
-use App\Infrastructure\Handlers\UpsertDebtorHandler;
-use App\Infrastructure\Handlers\UpsertEntityHandler;
-use App\Infrastructure\Messaging\SqsEventPublisher;
 use App\Infrastructure\Notification\NotificationFactory;
 use App\Infrastructure\Persistence\Aggregator;
 use App\Infrastructure\Persistence\EloquentImportLogRepository;
 use App\Infrastructure\Persistence\StagingLoader;
 use App\Infrastructure\Storage\S3FileStorage;
-use Aws\Sqs\SqsClient;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -34,11 +24,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->registerEventPublisher();
         $this->registerNotificationSender();
         $this->registerImportLogRepository();
         $this->registerFileStorage();
-        $this->registerEventHandlers();
         $this->registerStagingLoader();
         $this->registerAggregator();
         $this->registerImportOrchestrator();
@@ -53,35 +41,8 @@ class AppServiceProvider extends ServiceProvider
             $this->commands([
                 LocalstackSetupCommand::class,
                 ProcessBcraFileCommand::class,
-                ConsumeEventsCommand::class,
             ]);
         }
-    }
-
-    private function registerEventPublisher(): void
-    {
-        $this->app->bind(EventPublisher::class, function () {
-            $endpoint = (string) env('AWS_ENDPOINT', 'http://localstack:4566');
-            $region = (string) env('AWS_DEFAULT_REGION', 'us-east-1');
-            $prefix = (string) env('SQS_PREFIX', 'http://localstack:4566/000000000000');
-
-            $client = new SqsClient([
-                'endpoint' => $endpoint,
-                'region' => $region,
-                'version' => 'latest',
-                'credentials' => [
-                    'key' => (string) env('AWS_ACCESS_KEY_ID', 'test'),
-                    'secret' => (string) env('AWS_SECRET_ACCESS_KEY', 'test'),
-                ],
-            ]);
-
-            return new SqsEventPublisher(
-                client: $client,
-                debtorQueueUrl: $prefix . '/debtor-events',
-                entityQueueUrl: $prefix . '/entity-events',
-                importCompletedQueueUrl: $prefix . '/import-completed',
-            );
-        });
     }
 
     private function registerNotificationSender(): void
@@ -136,30 +97,6 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(FileStorage::class, function () {
             return new S3FileStorage();
-        });
-    }
-
-    private function registerEventHandlers(): void
-    {
-        $this->app->bind(DebtorEventHandler::class, function () {
-            return new UpsertDebtorHandler(
-                repository: $this->app->make(ImportLogRepository::class),
-                notificationSender: $this->app->make(NotificationSender::class),
-            );
-        });
-
-        $this->app->bind(EntityEventHandler::class, function () {
-            return new UpsertEntityHandler(
-                repository: $this->app->make(ImportLogRepository::class),
-                notificationSender: $this->app->make(NotificationSender::class),
-            );
-        });
-
-        $this->app->bind(ImportCompletedHandler::class, function () {
-            return new CompletionSentinelHandler(
-                repository: $this->app->make(ImportLogRepository::class),
-                notificationSender: $this->app->make(NotificationSender::class),
-            );
         });
     }
 }
